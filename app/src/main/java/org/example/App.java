@@ -3,6 +3,10 @@
  */
 package org.example;
 
+import com.google.genai.Client;
+import com.google.genai.types.GenerateContentResponse;
+import java.util.regex.*;
+import java.util.*;
 import java.net.*;
 import java.time.Duration;
 import java.util.HashMap;
@@ -33,16 +37,16 @@ public class App {
     public static void main(String[] args) throws Exception{
         
         WebDriver driver = new ChromeDriver();
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
 
-        CopyOnWriteArrayList<String> contentType = new CopyOnWriteArrayList<>();
         CopyOnWriteArrayList<Contents.Supplier> content = new CopyOnWriteArrayList<>();
 
         Filter myFilter = next -> {
             return req -> {
                 HttpResponse res = next.execute(req);
-                contentType.add(res.getHeader("Content-Type"));
-                content.add(res.getContent()); 
+                if(res.getHeader("Content-Length") != null && Integer.parseInt(res.getHeader("Content-Length")) !=0){
+                    content.add(res.getContent());
+                }
                 return res;
             };
         };
@@ -50,16 +54,89 @@ public class App {
         NetworkInterceptor ignored = new NetworkInterceptor(driver, myFilter);
         
         
-        driver.get("https://www.selenium.dev/selenium/web/blank.html");
-        wait.until(_d -> contentType.size() > 1);
+        //https://www.elpais.com/
+        //https://www.elmundo.es/
+        //https://okdiario.com/
+        //https://www.publico.es/
+        //https://www.elcorteingles.es/
+        //https://www.dia.es/
+
+        String domain = "https://www.elcorteingles.es/";
+        String short_domain = "elcorteingles.es";
+        driver.get(domain);
+
         
-        System.out.println(contentType.get(0));
+        try{
+            wait.until(_d -> content.size() > 150);
+        } catch (org.openqa.selenium.TimeoutException e){
+            System.out.println("\n\n\n");
+            System.out.println("Number of caught files: " + content.size());
+            System.out.println("\n\n\n");
+        }
+
+
+        //////////////////////////////////////////////////////////////////////////////
         
-        String result = new String(content.get(0).get().readAllBytes());
-        System.out.println(result);
-        
+        List<String> urls = new ArrayList<>();
+
+        for (int i = 0; i < content.size(); i++) {
+            //System.out.println(contentType.get(i));
+            String result = new String(content.get(i).get().readAllBytes());
+            //System.out.println(result+ "\n\n\n\n\n\n\n");
+
+            // Regex to match https:// followed by any non-space characters
+            String regex = "https://[^\\s]+";
+
+            Pattern pattern = Pattern.compile(regex);
+            Matcher matcher = pattern.matcher(result);
+
+            while (matcher.find()) {
+                urls.add(matcher.group());
+            }
+        }
+
+
+        String urlsSepartedByCommas = "";
+        // Print results
+        for (String url : urls) {
+            
+            String[] cuttedUrl =  url.split("[\"'\\\\]");
+
+            if((cuttedUrl[0].contains("privacidad") || cuttedUrl[0].contains("cookies")) && cuttedUrl[0].contains(short_domain)){
+                System.out.println(cuttedUrl[0]);
+                urlsSepartedByCommas = urlsSepartedByCommas + cuttedUrl[0] + ", ";
+            }
+        }
+        urlsSepartedByCommas = urlsSepartedByCommas.substring(0, urlsSepartedByCommas.length() - 2);
 
         driver.quit();
+
+
+
+
+
+        ////////////////////////////////////////////////////////////
+
+        //AIzaSyBa6I-WaQ9o7QNHouGQoATHWavr2REH9ko
+        //export GEMINI_API_KEY=AIzaSyBa6I-WaQ9o7QNHouGQoATHWavr2REH9ko
+
+        Client client = new Client();
+
+        GenerateContentResponse responseCookie = client.models.generateContent(
+            "gemini-2.5-flash",
+            "From these URL's ("+urlsSepartedByCommas+"), found when parsing "+short_domain+" html and js files, which do you think is the cookie policy webpage. Just return one URL.",
+            null);
+
+        System.out.println();
+        System.out.println("Gemini gess: "+responseCookie.text());
+
+        GenerateContentResponse responsePrivacy = client.models.generateContent(
+            "gemini-2.5-flash",
+            "From these URL's ("+urlsSepartedByCommas+"), found when parsing "+short_domain+" html and js files, which do you think is the privacy policy webpage. Just return one URL.",
+            null);
+
+        System.out.println();
+        System.out.println("Gemini gess: "+responsePrivacy.text());
 
 
         

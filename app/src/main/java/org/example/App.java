@@ -128,7 +128,7 @@ public class App {
             null);
 
         System.out.println();
-        System.out.println("Gemini gess: "+responseCookie.text());
+        System.out.println("Gemini guess for Cookies information: "+responseCookie.text());
 
         GenerateContentResponse responsePrivacy = client.models.generateContent(
             "gemini-2.5-flash",
@@ -136,7 +136,7 @@ public class App {
             null);
 
         System.out.println();
-        System.out.println("Gemini gess: "+responsePrivacy.text());
+        System.out.println("Gemini guess for Privacy information: "+responsePrivacy.text());
 
 
         

@@ -3,6 +3,10 @@
  */
 package org.example;
 
+import java.nio.charset.StandardCharsets;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import com.google.genai.Client;
 import com.google.genai.types.GenerateContentResponse;
 import java.util.regex.*;
@@ -146,22 +150,63 @@ public class App {
         System.out.println();
         System.out.println("Gemini guess for Privacy information: "+responsePrivacy.text());
 
-        // En aquest punt què: li he de passar amb prompt(pregunta) juntament amb la url que ella ha trobat.
-        // I si passem el text en comptes de la url?
-        // Mirar desde la developer console tot el que pilles al anar a la pàgina de cookies...
-        // Ojo, i fer wget?
         
+
+
+
+        ////////////////////////////////////////////////////////////
+
         try{
-                    // Example Linux command: "ls -la"
-            ProcessBuilder builder = new ProcessBuilder("bash", "-c", "wget --no-check-certificate -p -k "+responseCookie.text());
+            ProcessBuilder builder = new ProcessBuilder("bash", "-c", "wget -P ./cookies --no-check-certificate -p -k "+responseCookie.text());
             Process process = builder.start();
             int exitCode = process.waitFor();
             
+            builder = new ProcessBuilder("bash", "-c", "wget -P ./privacidad --no-check-certificate -p -k "+responsePrivacy.text());
+            process = builder.start();
+            exitCode = process.waitFor();
+
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        String privacyHtml = "";
+        String cookiesHtml = "";
+        String privacyFilePath = "/home/francesc/Escritorio/tma/selenium_java/my_gradle_project/projecte/app/privacidad/www.elmundo.es/privacidad/index.html";
+        String cookiesFilePath = "/home/francesc/Escritorio/tma/selenium_java/my_gradle_project/projecte/app/cookies/www.elmundo.es/cookies.html";
         
-        
+        try {
+            privacyHtml = Files.readString(Path.of(privacyFilePath),StandardCharsets.ISO_8859_1);
+            cookiesHtml = Files.readString(Path.of(cookiesFilePath),StandardCharsets.ISO_8859_1);
+            
+        } catch (IOException e) {
+            // Handle exceptions like File Not Found or I/O errors
+            System.err.println("Error reading file: " + e.getMessage());
+            e.printStackTrace();
+        }
+
 
         String promptArray[] = new String[3];
         
@@ -169,15 +214,15 @@ public class App {
 
         Role: Act as a Senior GDPR and ePrivacy Compliance Auditor.
 
-        Task: You will analyze the content of two provided legal documents (Privacy Policy and Cookie Policy) against a specific compliance checklist and output the results in a strict JSON format.
+        Task: You will analyze the content of two provided legal documents in HTML format (Privacy Policy and Cookie Policy) against a specific compliance checklist and output the results in a strict JSON format.
 
         Input Data:
         
         """;
 
         promptArray[1] = 
-        "\nPrivacy Policy Link/Text: " + responsePrivacy.text() +
-        "\nCookie Policy Link/Text: " + responseCookie.text() +
+        "\nPrivacy Policy HTML file: [" + privacyHtml + "]" +
+        "\nCookie Policy HTML file: [" + cookiesHtml + "]" +
         "\nCookies inventory: not provided";
 
         promptArray[2] = """

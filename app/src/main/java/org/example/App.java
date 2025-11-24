@@ -36,6 +36,9 @@ public class App {
     
     public static void main(String[] args) throws Exception{
         
+        //Before executing:
+        //export GEMINI_API_KEY=AIzaSyBa6I-WaQ9o7QNHouGQoATHWavr2REH9ko
+
         WebDriver driver = new ChromeDriver();
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
 
@@ -61,8 +64,8 @@ public class App {
         //https://www.elcorteingles.es/
         //https://www.dia.es/
 
-        String domain = "https://www.elcorteingles.es/";
-        String short_domain = "elcorteingles.es";
+        String domain = "https://www.elmundo.es/";
+        String short_domain = "elmundo.es";
         driver.get(domain);
 
         
@@ -100,13 +103,20 @@ public class App {
         // Print results
         for (String url : urls) {
             
+            System.out.println(url);
+
             String[] cuttedUrl =  url.split("[\"'\\\\]");
+
+            System.out.println(cuttedUrl[0]);
 
             if((cuttedUrl[0].contains("privacidad") || cuttedUrl[0].contains("cookies")) && cuttedUrl[0].contains(short_domain)){
                 System.out.println(cuttedUrl[0]);
                 urlsSepartedByCommas = urlsSepartedByCommas + cuttedUrl[0] + ", ";
             }
         }
+
+        System.out.println(urlsSepartedByCommas);
+
         urlsSepartedByCommas = urlsSepartedByCommas.substring(0, urlsSepartedByCommas.length() - 2);
 
         driver.quit();
@@ -117,8 +127,6 @@ public class App {
 
         ////////////////////////////////////////////////////////////
 
-        //AIzaSyBa6I-WaQ9o7QNHouGQoATHWavr2REH9ko
-        //export GEMINI_API_KEY=AIzaSyBa6I-WaQ9o7QNHouGQoATHWavr2REH9ko
 
         Client client = new Client();
 
@@ -138,8 +146,134 @@ public class App {
         System.out.println();
         System.out.println("Gemini guess for Privacy information: "+responsePrivacy.text());
 
-
+        // En aquest punt què: li he de passar amb prompt(pregunta) juntament amb la url que ella ha trobat.
+        // I si passem el text en comptes de la url?
+        // Mirar desde la developer console tot el que pilles al anar a la pàgina de cookies...
+        // Ojo, i fer wget?
         
+        try{
+                    // Example Linux command: "ls -la"
+            ProcessBuilder builder = new ProcessBuilder("bash", "-c", "wget --no-check-certificate -p -k "+responseCookie.text());
+            Process process = builder.start();
+            int exitCode = process.waitFor();
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        
+
+        String promptArray[] = new String[3];
+        
+        promptArray[0] = """
+
+        Role: Act as a Senior GDPR and ePrivacy Compliance Auditor.
+
+        Task: You will analyze the content of two provided legal documents (Privacy Policy and Cookie Policy) against a specific compliance checklist and output the results in a strict JSON format.
+
+        Input Data:
+        
+        """;
+
+        promptArray[1] = 
+        "\nPrivacy Policy Link/Text: " + responsePrivacy.text() +
+        "\nCookie Policy Link/Text: " + responseCookie.text() +
+        "\nCookies inventory: not provided";
+
+        promptArray[2] = """
+
+        Instructions:
+
+        Read and analyze the content of the documents provided above.
+
+        Evaluate the \"Audit Checklist\" questions below.
+
+        CRITICAL: For every answer, determine the \"Verdict\" (Yes / No / Partial) and extract \"Evidence\" (direct quote).
+
+        SCORING: Calculate the score internally:
+
+        Yes = 2 points
+
+        Partial = 1 point
+
+        No/Not Found = 0 points
+
+        Total possible: 34 points.
+
+        Levels: 0-15 (Critical Risk), 16-24 (High Risk), 25-30 (Moderate Risk), 31-34 (Low Risk / Compliant).
+
+        AUDIT CHECKLIST (To be analyzed):
+
+        PART A: GENERAL GOVERNANCE & DATA SUBJECT RIGHTS
+
+        Does the policy clearly state the full contact details of the Data Controller (company name, address) and the Data Protection Officer (DPO), if applicable?
+
+        Does the policy specify the retention period (how long data is kept) for the main categories of personal data collected?
+
+        Does the policy list the specific user rights (Access, Rectification, Erasure, Objection, Portability)?
+
+        Is there an operational contact channel (specific email or form) and clear instructions on how to exercise these rights?
+
+        Is the right to lodge a complaint with the relevant supervisory authority mentioned?
+
+        If data leaves the EEA, does the policy identify the recipient country and the specific safeguards used (e.g., Standard Contractual Clauses/SCCs or Data Privacy Framework)?
+
+        PART B: COOKIES & TRACKING TRANSPARENCY 7. Is there a specific and accessible Cookie Policy? (Is it separate or clearly integrated within the Privacy Policy?) 8. Does it explain in plain language what cookies are and why they are used on this website? 9. Are cookie categories clearly defined? (e.g., Technical, Analytical, Marketing, Preferences). 10. Are \"strictly necessary\" cookies explained, and is it justified why these do not require prior consent? 11. Does the policy contain a table or list detailing every cookie, including: Name, Provider, Purpose, and Duration? 12. Are there links to the privacy policies of external providers (third parties like Google, Facebook)? 13. Does it explicitly state that non-essential cookies (analytics/marketing) are only installed after consent? 14. Is the legal basis identified for each cookie type? (e.g., \"Legitimate Interest/Necessity\" for essential ones; \"Consent\" for the rest). 15. Does the text explain how the user can withdraw or modify their consent at any time? (Must mention a settings panel, footer link, or similar). 16. Does it clarify that withdrawing consent is as easy as giving it (e.g., \"you can change your mind at any time\")? 17. Does it mention if cookies are used for user profiling or tracking?
+
+        OUTPUT FORMAT (STRICT JSON)
+        Provide the response ONLY as a valid JSON object. Do not include introductory text or markdown formatting (like ```json). Use exactly the following structure:
+
+        JSON
+
+        {
+          \"audit_meta\": {
+            \"auditor_role\": \"Senior GDPR & ePrivacy Compliance Auditor\",
+            \"target_entity\": \"European Parliament\",
+            \"documents_reviewed\": [
+              \"Privacy Policy\",
+              \"Cookie Policy\",
+              \"Cookies Inventory\"
+            ],
+            \"audit_date\": \"YYYY-MM-DD\"
+          },
+          \"audit_checklist\": [
+            {
+              \"id\": 1,
+              \"category\": \"PART A: GENERAL GOVERNANCE\",
+              \"question\": \"Insert the FULL question text here\",
+              \"verdict\": \"Yes / No / Partial\",
+              \"evidence\": \"Insert direct quote here\",
+              \"notes\": \"Insert your auditor analysis here\"
+            },
+            {
+              \"id\": 2,
+              \"...\" : \"...\"
+            }
+            // Continue for all 17 questions
+          ],
+          \"scorecard\": {
+            \"total_score\": 0, // Sum of points
+            \"max_score\": 34,
+            \"compliance_level\": \"INSERT LEVEL NAME\",
+            \"risk_icon\": \"🔴 / 🟠 / 🟡 / 🟢\",
+            \"priority_actions\": [
+              \"Action 1 based on negative results\",
+              \"Action 2 based on negative results\",
+              \"Action 3 based on negative results\"
+            ]
+          }
+        }
+
+        """;
+
+        GenerateContentResponse responseGDPR = client.models.generateContent(
+            "gemini-2.5-flash",
+            promptArray[0]+promptArray[1]+promptArray[2],
+            null);
+
+        System.out.println();
+        System.out.println("Gemini GDPR response: "+responseGDPR.text());
+
 
     }
 }

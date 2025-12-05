@@ -24,13 +24,14 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.devtools.NetworkInterceptor;
-import org.openqa.selenium.devtools.v130.browser.Browser;
-import org.openqa.selenium.devtools.v130.network.Network;
-import org.openqa.selenium.devtools.v130.performance.Performance;
-import org.openqa.selenium.devtools.v130.performance.model.Metric;
+import org.openqa.selenium.devtools.v141.browser.Browser;
+import org.openqa.selenium.devtools.v141.network.Network;
+import org.openqa.selenium.devtools.v141.performance.Performance;
+import org.openqa.selenium.devtools.v141.performance.model.Metric;
 import org.openqa.selenium.remote.http.*;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.openqa.selenium.Cookie;
@@ -40,10 +41,30 @@ public class App {
     
     public static void main(String[] args) throws Exception{
         
-        //Before executing:
-        //export GEMINI_API_KEY=AIzaSyBa6I-WaQ9o7QNHouGQoATHWavr2REH9ko
+        String geminiApiKey = System.getenv("GEMINI_API_KEY");
+        String chromedriverAbsolutePath = System.getenv("CHROMEDRIVER_ABSOLUTE_PATH");
+        
+        if (geminiApiKey == null) {
+            System.out.println("Environment variable GEMINI_API_KEY has not been exported. It is not possible to proceed.\nTo set it use this command 'export GEMINI_API_KEY=<key>'");
+            return;
+        }
 
-        WebDriver driver = new ChromeDriver();
+        if (chromedriverAbsolutePath == null) {
+            System.out.println("Environment variable CHROMEDRIVER_ABSOLUTE_PATH has not been exported. It is not possible to proceed.\nTo set it use this command 'export CHROMEDRIVER_ABSOLUTE_PATH=<absolute_path>'");
+            return;
+        }
+
+        System.setProperty("webdriver.chrome.driver", chromedriverAbsolutePath);
+        
+        ChromeOptions options = new ChromeOptions();
+        options.addArguments("--headless=new");
+        options.addArguments("--disable-gpu"); 
+        options.addArguments("--window-size=1920,1080");
+        options.addArguments("--no-sandbox");
+        options.addArguments("--disable-dev-shm-usage");
+        
+        WebDriver driver = new ChromeDriver(options);
+
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
 
         CopyOnWriteArrayList<Contents.Supplier> content = new CopyOnWriteArrayList<>();
@@ -69,6 +90,7 @@ public class App {
         //https://www.dia.es/
 
         String domain = "https://www.elmundo.es/";
+        String domain_without_protocol = "www.elmundo.es/";
         String short_domain = "elmundo.es";
         driver.get(domain);
 
@@ -106,20 +128,14 @@ public class App {
         String urlsSepartedByCommas = "";
         // Print results
         for (String url : urls) {
-            
-            System.out.println(url);
 
             String[] cuttedUrl =  url.split("[\"'\\\\]");
 
-            System.out.println(cuttedUrl[0]);
-
             if((cuttedUrl[0].contains("privacidad") || cuttedUrl[0].contains("cookies")) && cuttedUrl[0].contains(short_domain)){
-                System.out.println(cuttedUrl[0]);
                 urlsSepartedByCommas = urlsSepartedByCommas + cuttedUrl[0] + ", ";
             }
         }
 
-        System.out.println(urlsSepartedByCommas);
 
         urlsSepartedByCommas = urlsSepartedByCommas.substring(0, urlsSepartedByCommas.length() - 2);
 
@@ -194,8 +210,8 @@ public class App {
 
         String privacyHtml = "";
         String cookiesHtml = "";
-        String privacyFilePath = "/home/francesc/Escritorio/tma/selenium_java/my_gradle_project/projecte/app/privacidad/www.elmundo.es/privacidad/index.html";
-        String cookiesFilePath = "/home/francesc/Escritorio/tma/selenium_java/my_gradle_project/projecte/app/cookies/www.elmundo.es/cookies.html";
+        String privacyFilePath = "./privacidad/"+domain_without_protocol+"/privacidad/index.html";
+        String cookiesFilePath = "./cookies/"+domain_without_protocol+"/cookies.html";
         
         try {
             privacyHtml = Files.readString(Path.of(privacyFilePath),StandardCharsets.ISO_8859_1);

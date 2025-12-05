@@ -103,6 +103,7 @@ public class App {
             System.out.println("\n\n\n");
         }
 
+        driver.quit();
 
         //////////////////////////////////////////////////////////////////////////////
         
@@ -136,10 +137,14 @@ public class App {
             }
         }
 
+        if(urlsSepartedByCommas.equals("")){
+            System.out.println("No URL's found.");
+            return;
+        }
 
         urlsSepartedByCommas = urlsSepartedByCommas.substring(0, urlsSepartedByCommas.length() - 2);
 
-        driver.quit();
+        
 
 
 
@@ -334,6 +339,9 @@ public class App {
 
         System.out.println();
         System.out.println("Gemini GDPR response: "+responseGDPR.text());
+
+        Runtime.getRuntime().exec("rm -rf privacidad");
+        Runtime.getRuntime().exec("rm -rf cookies");
 
 
     }

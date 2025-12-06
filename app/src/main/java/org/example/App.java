@@ -66,6 +66,53 @@ public class App {
         WebDriver driver = new ChromeDriver(options);
 
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+        
+        
+        //https://www.elpais.com/
+        //https://www.elmundo.es/
+        //https://okdiario.com/
+        //https://www.publico.es/
+        //https://www.elcorteingles.es/
+        //https://www.dia.es/
+
+        String[] domains = {
+            "https://www.elpais.com/",
+            "https://www.elmundo.es/",
+            "https://okdiario.com/",
+            "https://www.abc.es/",
+            "https://www.lavanguardia.com/",
+            "https://www.elperiodico.com/",
+            "https://www.20minutos.es/",
+            "https://www.elconfidencial.com/",
+            "https://www.publico.es/",
+            "https://www.larazon.es/"
+        };
+        String[] domains_without_protocol = {
+            "www.elpais.com/",
+            "www.elmundo.es/",
+            "okdiario.com/",
+            "www.abc.es/",
+            "www.lavanguardia.com/",
+            "www.elperiodico.com/",
+            "www.20minutos.es/",
+            "www.elconfidencial.com/",
+            "www.publico.es/",
+            "www.larazon.es/"
+        };
+        String[] short_domains = {
+            "elpais.com",
+            "elmundo.es",
+            "okdiario.com",
+            "abc.es",
+            "lavanguardia.com",
+            "elperiodico.com",
+            "20minutos.es",
+            "elconfidencial.com",
+            "publico.es",
+            "larazon.es"
+        };
+
+        for (int h = 0; h < domains.length; h++) {
 
         CopyOnWriteArrayList<Contents.Supplier> content = new CopyOnWriteArrayList<>();
 
@@ -80,18 +127,10 @@ public class App {
         };
         
         NetworkInterceptor ignored = new NetworkInterceptor(driver, myFilter);
-        
-        
-        //https://www.elpais.com/
-        //https://www.elmundo.es/
-        //https://okdiario.com/
-        //https://www.publico.es/
-        //https://www.elcorteingles.es/
-        //https://www.dia.es/
 
-        String domain = "https://www.elmundo.es/";
-        String domain_without_protocol = "www.elmundo.es/";
-        String short_domain = "elmundo.es";
+        String domain = domains[h];
+        String domain_without_protocol = domains_without_protocol[h];
+        String short_domain = short_domains[h];
         driver.get(domain);
 
         
@@ -103,7 +142,7 @@ public class App {
             System.out.println("\n\n\n");
         }
 
-        driver.quit();
+        //driver.quit();
 
         //////////////////////////////////////////////////////////////////////////////
         
@@ -139,7 +178,7 @@ public class App {
 
         if(urlsSepartedByCommas.equals("")){
             System.out.println("No URL's found.");
-            return;
+            continue;
         }
 
         urlsSepartedByCommas = urlsSepartedByCommas.substring(0, urlsSepartedByCommas.length() - 2);
@@ -171,9 +210,10 @@ public class App {
         System.out.println();
         System.out.println("Gemini guess for Privacy information: "+responsePrivacy.text());
 
-        
+        }
 
-
+        driver.quit();
+        /*
 
         ////////////////////////////////////////////////////////////
 
@@ -342,6 +382,8 @@ public class App {
 
         Runtime.getRuntime().exec("rm -rf privacidad");
         Runtime.getRuntime().exec("rm -rf cookies");
+
+        */
 
 
     }

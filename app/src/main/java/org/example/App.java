@@ -36,6 +36,10 @@ import org.openqa.selenium.remote.http.*;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.openqa.selenium.Cookie;
 import org.openqa.selenium.chromium.HasCdp;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
 public class App {
     
@@ -72,9 +76,9 @@ public class App {
         Filter myFilter = next -> {
             return req -> {
                 HttpResponse res = next.execute(req);
-                if(res.getHeader("Content-Length") != null && Integer.parseInt(res.getHeader("Content-Length")) !=0){
+                //if(res.getHeader("Content-Length") != null && Integer.parseInt(res.getHeader("Content-Length")) !=0){
                     content.add(res.getContent());
-                }
+                //}
                 return res;
             };
         };
@@ -147,6 +151,26 @@ public class App {
         
 
 
+        ////////////////////////////////////////////////////////////
+
+        List<String> urlsJSOUP = new ArrayList<>();
+
+        for (int i = 0; i < content.size(); i++) {
+
+            String result = new String(content.get(i).get().readAllBytes());
+            Document doc = Jsoup.parse(result);
+
+            //Element content = doc.getElementById("content");
+            //Elements links = content.getElementsByTag("a");
+
+            Elements links = doc.getElementsByTag("a");
+            for (Element link : links) {
+                String linkHref = link.attr("href");
+                String linkText = link.text();
+
+                System.out.println("In document number " + i + " - " +linkHref);
+            }
+        }
 
 
 

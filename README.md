@@ -10,6 +10,27 @@ Before executing:
 
 export CHROMEDRIVER_ABSOLUTE_PATH=\<absolute path where your chromedriver was downloaded\>\
 export GEMINI_API_KEY=\<api key\>
+export DATABASE_PASSWORD=\<database password\>
+
+
+Also before executing, up the database:
+docker run --name some-mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=my-secret-pw -d mysql
+
+And with a client:
+docker run -it --rm --network="host" mysql mysql -h 127.0.0.1 -P 3306 -u root -p
+Once inside:
+CREATE DATABASE TMA;
+USE TMA;
+
+CREATE TABLE host_results (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    hostname VARCHAR(255) NOT NULL,
+    results TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
 
 To execute:
 

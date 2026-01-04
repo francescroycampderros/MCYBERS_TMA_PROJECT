@@ -13,11 +13,6 @@ import java.util.regex.*;
 import java.util.*;
 import java.net.*;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
@@ -34,8 +29,12 @@ import org.openqa.selenium.devtools.v141.performance.Performance;
 import org.openqa.selenium.devtools.v141.performance.model.Metric;
 import org.openqa.selenium.remote.http.*;
 import org.openqa.selenium.support.ui.WebDriverWait;
-import org.openqa.selenium.Cookie;
 import org.openqa.selenium.chromium.HasCdp;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 public class App {
 
@@ -75,10 +74,14 @@ public class App {
         "integritet", "personuppgifter"
     );
 
+    private static final String URL = "jdbc:mysql://127.0.0.1:3306/TMA?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
+    private static final String USER = "root";
+
     public static void main(String[] args) throws Exception {
 
         String geminiApiKey = System.getenv("GEMINI_API_KEY");
         String chromedriverAbsolutePath = System.getenv("CHROMEDRIVER_ABSOLUTE_PATH");
+        String databasePassword = System.getenv("DATABASE_PASSWORD");
 
         if (geminiApiKey == null) {
             System.out.println("Environment variable GEMINI_API_KEY has not been exported. It is not possible to proceed.\nTo set it use this command 'export GEMINI_API_KEY=<key>'");
@@ -87,6 +90,11 @@ public class App {
 
         if (chromedriverAbsolutePath == null) {
             System.out.println("Environment variable CHROMEDRIVER_ABSOLUTE_PATH has not been exported. It is not possible to proceed.\nTo set it use this command 'export CHROMEDRIVER_ABSOLUTE_PATH=<absolute_path>'");
+            return;
+        }
+
+        if (databasePassword == null) {
+            System.out.println("Environment variable DATABASE_PASSWORD has not been exported. It is not possible to proceed.\nTo set it use this command 'export DATABASE_PASSWORD=<database_password>'");
             return;
         }
 
@@ -120,9 +128,9 @@ public class App {
         Filter myFilter = next -> {
             return req -> {
                 HttpResponse res = next.execute(req);
-                if (res.getHeader("Content-Length") != null && Integer.parseInt(res.getHeader("Content-Length")) != 0) {
+                //if (res.getHeader("Content-Length") != null && Integer.parseInt(res.getHeader("Content-Length")) != 0) {
                     content.add(res.getContent());
-                }
+                //}
                 return res;
             };
         };
@@ -456,6 +464,20 @@ public class App {
 
             System.out.println();
             System.out.println("Gemini GDPR response for domain " + domain + ": " + responseGDPR.text());
+
+            try (Connection connection = DriverManager.getConnection(URL, USER, databasePassword)) {
+
+                String query = "INSERT INTO host_results (hostname, results) VALUES (?, ?)";
+        
+                PreparedStatement ps = null;
+                ps = connection.prepareStatement(query);
+                ps.setString(1, domain);
+                ps.setString(2, responseGDPR.text());  
+                ps.execute();
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
 
         driver.quit();

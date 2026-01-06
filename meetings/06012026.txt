@@ -1,0 +1,24 @@
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Cosas a mirar:
+
+Gemini, pagar PRO?\
+BBDD se debe guardar en el host (Francesc)\
+Hacer consulta, si el host ya se ha procesado, pasar al siguiente (Johanna)\
+
+Duda: Devolver el Json completo al frontend o prefieren que se lo pasemos parseado campo por campo...\
+Opción 1:\
+    Le devolvemos todo el json. I el parseo se hace desde el plugin\
+    Web api: HTTP GET, ip/elmundo.es\
+Opción 2:\
+    Parseado en una tabla.\
+    Web api: HTTP GET, ip/elmundo.es&1\
+    Web api: HTTP GET, ip/elmundo.es&2\
+    Web api: HTTP GET, ip/elmundo.es&3 ...
+
+    Web api: HTTP GET, ip/elmundo.es&score\
+
+    Opción 1 : Coger lo de la columna TEXT, i parsearlo con JAVA\
+    Opción 2 (Johanna): Crear una VIEW con todos los campos JSON, i hacer select's en esa view. (MIRAR QUE REALMENTE TENGAMOS COLUMNA JSON)\
+
+Framework para la WebAPI: https://flask.palletsprojects.com/en/stable/ 

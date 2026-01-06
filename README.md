@@ -7,19 +7,26 @@ Also you should have Chrome installed and the corresponding webdriver downloaded
 The link to download the webdriver: https://googlechromelabs.github.io/chrome-for-testing/ (CAUTION!: Download the chromedriver not chrome)
 
 Before executing:
+```console
+export CHROMEDRIVER_ABSOLUTE_PATH=<absolute path where your chromedriver was downloaded>
+export GEMINI_API_KEY=<api key>
+export DATABASE_PASSWORD=<database password>
+```
 
-export CHROMEDRIVER_ABSOLUTE_PATH=\<absolute path where your chromedriver was downloaded\>\
-export GEMINI_API_KEY=\<api key\>
-export DATABASE_PASSWORD=\<database password\>
+Also before executing, initialize the database:
+```console
+docker run --name some-mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=<database password> -d mysql
+```
 
-
-Also before executing, up the database:
-docker run --name some-mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=my-secret-pw -d mysql
-
-And with a client:
+And with a client, connect to the server, just to prepare the SQL schema:
+```console
 docker run -it --rm --network="host" mysql mysql -h 127.0.0.1 -P 3306 -u root -p
+```
+
 Once inside:
+```sql
 CREATE DATABASE TMA;
+
 USE TMA;
 
 CREATE TABLE host_results (
@@ -28,10 +35,18 @@ CREATE TABLE host_results (
     results TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+```
 
 
 
-
-To execute:
-
+Now we are ready to execute:
+```console
 ./gradlew run
+```
+
+                    
+
+
+
+
+

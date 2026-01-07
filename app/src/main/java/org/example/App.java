@@ -35,6 +35,8 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.ResultSet;
+
 
 public class App {
 
@@ -145,6 +147,37 @@ public class App {
             System.out.println("\n\n========================================");
             System.out.println("Processing domain: " + domain);
             System.out.println("========================================\n");
+
+            System.out.println("Checking database for domain: " + domain);
+
+            // Check if this domain was already processed
+            boolean alreadyProcessed = false;
+
+            try (Connection connection = DriverManager.getConnection(URL, USER, databasePassword)) {
+
+                String checkQuery = "SELECT 1 FROM host_results WHERE hostname = ? LIMIT 1";
+                try (PreparedStatement checkStmt = connection.prepareStatement(checkQuery)) {
+                    checkStmt.setString(1, domain);
+                    try (ResultSet rs = checkStmt.executeQuery()) {
+                        if (rs.next()) {
+                            alreadyProcessed = true;
+                        }
+                    }
+                }
+
+            } catch (SQLException e) {
+                System.err.println("Database error while checking existing domain: " + domain);
+                e.printStackTrace();
+                continue;
+            }
+
+            if (alreadyProcessed) {
+                System.out.println("Domain FOUND in database, skipping processing: " + domain);
+                continue;
+            }
+
+            System.out.println("Domain NOT found in database, proceeding with analysis: " + domain);
+
 
             // Clear previous captured contents
             content.clear();
@@ -473,7 +506,10 @@ public class App {
                 ps = connection.prepareStatement(query);
                 ps.setString(1, domain);
                 ps.setString(2, responseGDPR.text());  
-                ps.execute();
+                //ps.execute();
+                //instead of ps.execute, we want to verify if data is saved
+                int rows = ps.executeUpdate();
+                System.out.println("DB insert rows affected: " + rows + " for domain " + domain);
 
             } catch (SQLException e) {
                 e.printStackTrace();

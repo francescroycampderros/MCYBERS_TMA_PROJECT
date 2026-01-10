@@ -15,7 +15,9 @@ export DATABASE_PASSWORD=<database password>
 
 Also before executing, initialize the database:
 ```console
-docker run --name some-mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=<database password> -d mysql
+docker volume create mysql_data
+
+docker run --name some-mysql -p 3306:3306 -v mysql_data:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=<database password> -d mysql
 ```
 
 And with a client, connect to the server, just to prepare the SQL schema:

@@ -124,20 +124,29 @@ function App() {
       // Adapter for Node Backend Structure
       // Maps backend response format to frontend state structure
 
-      if (jsonResponse.data && jsonResponse.data.audit_checklist) {
+      // Check for either 'audit_checklist' (legacy/demo) or 'checklist' (backend)
+      const checklistData = jsonResponse.data?.audit_checklist || jsonResponse.data?.checklist;
+
+      if (jsonResponse.data && checklistData) {
+        // Normalize the data structure for the view
+        const analysisData = { ...jsonResponse.data };
+        if (!analysisData.audit_checklist && analysisData.checklist) {
+          analysisData.audit_checklist = analysisData.checklist;
+        }
+
         data = {
           found: true,
           domain: jsonResponse.hostname,
           compliance_score: jsonResponse.data.scorecard?.total_score || 0,
           compliance_level: jsonResponse.data.scorecard?.compliance_level || 'Unknown',
-          gdpr_analysis: jsonResponse.data,
+          gdpr_analysis: analysisData,
           cookies: jsonResponse.data.cookies || [],
           cookies_set_before_consent: jsonResponse.data.cookies_set_before_consent || 0,
           non_essential_before_consent: jsonResponse.data.non_essential_before_consent || 0
         };
       }
 
-      if (!data.found && !jsonResponse.data) {
+      if (!data.found && !checklistData && !jsonResponse.data) {
         throw new Error(`No scan results found for "${domainName}". Please scan this website first using the Java scanner.`);
       }
 
@@ -287,6 +296,7 @@ function ResultsView({ data, onDownload }) {
 
   const partBItems = checklist.filter(item => item.category && item.category.includes('PART B'));
   const partBScore = partBItems.reduce((sum, item) => (item.verdict === 'Yes' ? sum + 2 : item.verdict === 'Partial' ? sum + 1 : sum), 0);
+
   const partBMax = partBItems.length * 2;
 
   const isApiQueue = checklist.length === 0;
@@ -456,6 +466,8 @@ function CookieStats({ data }) {
     </div>
   );
 }
+
+
 
 function ComplianceDiagram({ checklist }) {
   const total = checklist.length;

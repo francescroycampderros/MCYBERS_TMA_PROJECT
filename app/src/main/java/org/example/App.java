@@ -178,6 +178,15 @@ public class App {
 
             System.out.println("Domain NOT found in database, proceeding with analysis: " + domain);
 
+            // Clear cookies and storage to ensure a clean session for this domain
+            try {
+                driver.manage().deleteAllCookies();
+                ((org.openqa.selenium.JavascriptExecutor) driver).executeScript(
+                    "window.localStorage.clear(); window.sessionStorage.clear();");
+            } catch (Exception e) {
+                System.out.println("Warning: Could not clear updated browser state: " + e.getMessage());
+            }
+
 
             // Clear previous captured contents
             content.clear();
@@ -209,7 +218,38 @@ public class App {
                 System.out.println("Number of caught files: " + content.size());
             }
 
-            //////////////////////////////////////////////////////////////////////////////
+            // --- NEW: Cookie Capture & Consent Automation ---
+            List<CookieData> cookiesBefore = getCookies(driver);
+            System.out.println("Cookies captured BEFORE consent: " + cookiesBefore.size());
+
+            detectAndClickConsent(driver);
+            
+            List<CookieData> cookiesAfter = getCookies(driver);
+            System.out.println("Cookies captured AFTER consent: " + cookiesAfter.size());
+
+            StringBuilder cookieInventoryBuilder = new StringBuilder();
+            cookieInventoryBuilder.append("Cookies set BEFORE consent (Frequency/Count: ").append(cookiesBefore.size()).append("):\n");
+            for(CookieData c : cookiesBefore) {
+                cookieInventoryBuilder.append("- ").append(c.toString()).append(" (Set Before Consent: YES)\n");
+            }
+            cookieInventoryBuilder.append("\nCookies set AFTER consent (Total Count: ").append(cookiesAfter.size()).append("):\n");
+             for(CookieData c : cookiesAfter) {
+                // Check if this cookie was already present before
+                boolean presentBefore = false;
+                for(CookieData b : cookiesBefore) {
+                    if(b.name.equals(c.name) && b.domain.equals(c.domain)) {
+                        presentBefore = true;
+                        break;
+                    }
+                }
+                if (!presentBefore) {
+                     cookieInventoryBuilder.append("- ").append(c.toString()).append(" (Set Before Consent: NO, Triggered by Consent)\n");
+                }
+            }
+
+            String finalCookieInventory = cookieInventoryBuilder.toString();
+
+            // ------------------------------------------------
 
             List<String> urls = new ArrayList<>();
 
@@ -283,111 +323,50 @@ public class App {
             }
             ////////////////////////////////////////////////////////////
 
-            //Cookie prompt → uses only cookie candidate URLs (unless none exist).
-            //Privacy prompt → uses only privacy candidate URLs (unless none exist).
+            // NEW LOGIC: Heuristic URL Selection (Bypassing Gemini for URL identification)
+            // We already have filtered lists: cookieUrlsSeparatedByCommas, privacyUrlsSeparatedByCommas
             
-            // If one list is empty, fall back to the other so Gemini still has something to choose from
-            String cookieCandidatesForPrompt  = cookieUrlsSeparatedByCommas.isEmpty()
-                    ? privacyUrlsSeparatedByCommas
-                    : cookieUrlsSeparatedByCommas;
-
-            String privacyCandidatesForPrompt = privacyUrlsSeparatedByCommas.isEmpty()
-                    ? cookieUrlsSeparatedByCommas
-                    : privacyUrlsSeparatedByCommas;
-
-            GenerateContentResponse responseCookie = client.models.generateContent(
-                    "gemini-2.5-flash",
-                    "From these URL's (" + cookieCandidatesForPrompt +
-                    "), found when parsing " + short_domain +
-                    " html and js files, which do you think is the cookie policy webpage. Just return one URL.",
-                    null);
-
-            System.out.println();
-            System.out.println("Gemini guess for Cookies information (" + domain + "): " + responseCookie.text());
-
-            GenerateContentResponse responsePrivacy = client.models.generateContent(
-                    "gemini-2.5-flash",
-                    "From these URL's (" + privacyCandidatesForPrompt +
-                    "), found when parsing " + short_domain +
-                    " html and js files, which do you think is the privacy policy webpage. Just return one URL.",
-                    null);
-
-            System.out.println();
-            System.out.println("Gemini guess for Privacy information (" + domain + "): " + responsePrivacy.text());
-
-
-            ////////////////////////////////////////////////////////////
-
-            try {
-                ProcessBuilder builder = new ProcessBuilder("bash", "-c", "wget -P ./cookies --no-check-certificate -p -k " + responseCookie.text());
-                Process process = builder.start();
-                int exitCode = process.waitFor();
-
-                builder = new ProcessBuilder("bash", "-c", "wget -P ./privacidad --no-check-certificate -p -k " + responsePrivacy.text());
-                process = builder.start();
-                exitCode = process.waitFor();
-
-            } catch (Exception e) {
-                e.printStackTrace();
+            String targetCookieUrl = "";
+            String targetPrivacyUrl = "";
+            
+            if (!cookieUrlsSeparatedByCommas.isEmpty()) {
+                targetCookieUrl = cookieUrlsSeparatedByCommas.split(",")[0].trim();
+            } else if (!privacyUrlsSeparatedByCommas.isEmpty()) {
+                 // Fallback
+                 targetCookieUrl = privacyUrlsSeparatedByCommas.split(",")[0].trim();
             }
+            
+            if (!privacyUrlsSeparatedByCommas.isEmpty()) {
+                 targetPrivacyUrl = privacyUrlsSeparatedByCommas.split(",")[0].trim();
+            } else if (!cookieUrlsSeparatedByCommas.isEmpty()) {
+                // Fallback
+                targetPrivacyUrl = cookieUrlsSeparatedByCommas.split(",")[0].trim();
+            }
+            
+            // Hardcode fallback if absolutely nothing found (though the loop 'continue' above should prevent this)
+            if (targetCookieUrl.isEmpty()) targetCookieUrl = "https://" + short_domain;
+            if (targetPrivacyUrl.isEmpty()) targetPrivacyUrl = "https://" + short_domain;
 
-            //String privacyHtml = "";
-            //String cookiesHtml = "";
-            //String privacyFilePath = "./privacidad/" + domain_without_protocol + "/privacidad/index.html";
-            //String cookiesFilePath = "./cookies/" + domain_without_protocol + "/cookies.html";
-
-            //try {
-            //    privacyHtml = Files.readString(Path.of(privacyFilePath), StandardCharsets.ISO_8859_1);
-            //    cookiesHtml = Files.readString(Path.of(cookiesFilePath), StandardCharsets.ISO_8859_1);
-
-            //} catch (IOException e) {
-            //    // Handle exceptions like File Not Found or I/O errors
-            //    System.err.println("Error reading file for domain " + domain + ": " + e.getMessage());
-            //    e.printStackTrace();
-            //}
-
-            // NEW VERSION TO CHECK URL
             String privacyHtml = "";
             String cookiesHtml = "";
 
             try {
-                // Clean URLs returned by Gemini (just in case there are spaces or newlines)
-                String cookieUrl  = responseCookie.text().trim();
-                String privacyUrl = responsePrivacy.text().trim();
+                System.out.println("Fetching content directly from URL: " + targetCookieUrl);
+                cookiesHtml = fetchContent(targetCookieUrl);
+                
+                System.out.println("Fetching content directly from URL: " + targetPrivacyUrl);
+                privacyHtml = fetchContent(targetPrivacyUrl);
 
-                // Build URIs from those URLs
-                URI cookieUri  = new URI(cookieUrl);
-                URI privacyUri = new URI(privacyUrl);
+                if (cookiesHtml.isEmpty()) System.out.println("WARNING: Fetched cookies content is empty.");
+                if (privacyHtml.isEmpty()) System.out.println("WARNING: Fetched privacy content is empty.");
 
-                // Extract real host and path as downloaded by wget
-                String cookieHost   = cookieUri.getHost();   // e.g. "elpais.com"
-                String cookiePath   = cookieUri.getPath();   // e.g. "/info/politica-de-cookies/"
-                String privacyHost  = privacyUri.getHost();  // e.g. "english.elpais.com"
-                String privacyPath  = privacyUri.getPath();  // e.g. "/info/cookies-policy/"
-
-                // Build local file paths, matching wget -P ./cookies -p -k <url>
-                String cookiesFilePath  = "./cookies/"    + cookieHost   + cookiePath;
-                String privacyFilePath  = "./privacidad/" + privacyHost  + privacyPath;
-
-                // If the path ends with '/', assume index.html
-                if (cookiesFilePath.endsWith("/")) {
-                    cookiesFilePath += "index.html";
-                }
-                if (privacyFilePath.endsWith("/")) {
-                    privacyFilePath += "index.html";
-                }
-
-                System.out.println("Reading cookies file from:  " + cookiesFilePath);
-                System.out.println("Reading privacy file from: " + privacyFilePath);
-
-                cookiesHtml = Files.readString(Path.of(cookiesFilePath), StandardCharsets.ISO_8859_1);
-                privacyHtml = Files.readString(Path.of(privacyFilePath), StandardCharsets.ISO_8859_1);
 
             } catch (Exception e) {
-                System.err.println("Error reading policy files for domain " + domain + ": " + e.getMessage());
+                System.err.println("Error fetching policy content: " + e.getMessage());
                 e.printStackTrace();
             }
-            //NEW VERSION TO CHECK URL
+            // ---------------------------------------------------------
+            // TO CHECK URL
 
 
             String promptArray[] = new String[3];
@@ -405,7 +384,9 @@ public class App {
             promptArray[1] =
                     "\nPrivacy Policy HTML file: [" + privacyHtml + "]" +
                     "\nCookie Policy HTML file: [" + cookiesHtml + "]" +
-                    "\nCookies inventory: not provided";
+                    "\nPrivacy Policy HTML file: [" + privacyHtml + "]" +
+                    "\nCookie Policy HTML file: [" + cookiesHtml + "]" +
+                    "\n\nTECHNICAL COOKIE SCAN RESULTS (Real-time data from browser):\n" + finalCookieInventory;
 
             promptArray[2] = """
 
@@ -415,18 +396,18 @@ public class App {
 
             Evaluate the "Audit Checklist" questions below.
 
-            CRITICAL: For every answer, determine the "Verdict" (Yes / No / Partial) and extract "Evidence" (direct quote).
+            CRITICAL INSTRUCTIONS FOR VERDICT & SCORING:
+            1. You MUST cross-reference the "TECHNICAL COOKIE SCAN RESULTS" with the policy text.
+            2. If the Technical Scan shows cookies set BEFORE consent ("Set Before Consent: YES"), and the policy claims "Non-essential cookies are only set after consent", the Verdict for that question MUST be "No" (False Claim).
+            3. The "Compliance Score" must reflect the REALITY, not just the text. If technical violations exist (cookies before consent), the Score cannot be "Compliant".
+            4. If "cookies_set_before_consent" > 0 in the technical data, the overall "compliance_level" MUST be "Critical Risk" or "High Risk", and the maximum possible score for PART B is reduced.
 
             SCORING: Calculate the score internally:
-
             Yes = 2 points
-
             Partial = 1 point
-
-            No/Not Found = 0 points
+            No/Not Found = 0 points (Use 'No' if Policy contradicts Technical Data)
 
             Total possible: 34 points.
-
             Levels: 0-15 (Critical Risk), 16-24 (High Risk), 25-30 (Moderate Risk), 31-34 (Low Risk / Compliant).
 
             AUDIT CHECKLIST (To be analyzed):
@@ -457,37 +438,46 @@ public class App {
                 "auditor_role": "Senior GDPR & ePrivacy Compliance Auditor",
                 "documents_reviewed": [
                   "Privacy Policy",
-                  "Cookie Policy"
+                  "Cookie Policy",
+                  "Technical Cookie Scan"
                 ],
               },
               "audit_checklist": [
                 {
                   "id": 1,
-                  "category": "PART A: GENERAL GOVERNANCE",
-                  "question": "Insert the FULL question text here",
-                  "verdict": "Yes / No / Partial",
-                  "evidence": "Insert direct quote here",
-                  "notes": "Insert your auditor analysis here"
-                },
-                {
-                  "id": 2,
-                  "...": "..."
+                  "category": "PART A: GENERAL GOVERNANCE & DATA SUBJECT RIGHTS",
+                  "question": "Question text...",
+                  "verdict": "Yes/No/Partial",
+                  "evidence": "Quote from text...",
+                  "notes": "Short explanation"
                 }
-                // Continue for all 17 questions
               ],
+              "cookies": [
+                {
+                   "name": "_ga",
+                   "domain": ".example.com",
+                   "category": "analytics/advertising/essential/other",
+                   "set_before_consent": true/false,
+                   "is_third_party": true/false
+                }
+                // ... (List ALL cookies found in the inventory)
+              ],
+
+              "cookies_set_before_consent": 0, // Count
+              "non_essential_before_consent": 0, // Count of analytics/marketing cookies set before consent
               "scorecard": {
-                "total_score": 0, // Sum of points
+                "total_score": 0,
                 "max_score": 34,
-                "compliance_level": "INSERT LEVEL NAME",
-                "risk_icon": "🔴 / 🟠 / 🟡 / 🟢",
-                "priority_actions": [
-                  "Action 1 based on negative results",
-                  "Action 2 based on negative results",
-                  "Action 3 based on negative results"
-                ]
+                "compliance_level": "Level",
+                "risk_icon": "Icon",
+                "priority_actions": []
               }
             }
 
+            IMPORTANT: 
+            1. You MUST populate the "cookies" array by analyzing the "TECHNICAL COOKIE SCAN RESULTS" provided above. Assign a category to each cookie based on its name (e.g. "_ga" is Analytics).
+            2. If you see cookies like "_ga", "_fbp" or similar set BEFORE consent (marked as YES in the list), you MUST flag "set_before_consent": true.
+            3. Calculate "cookies_set_before_consent" and "non_essential_before_consent" based on your classification.
             """;
 
             GenerateContentResponse responseGDPR = client.models.generateContent(
@@ -519,6 +509,167 @@ public class App {
         driver.quit();
         Runtime.getRuntime().exec("rm -rf privacidad");
         Runtime.getRuntime().exec("rm -rf cookies");
+    }
+
+
+    // --- Helper Classes & Methods ---
+
+    static class CookieData {
+        String name;
+        String domain;
+        boolean isHttpOnly;
+        boolean isSecure;
+        String path;
+
+        public CookieData(String name, String domain, boolean isHttpOnly, boolean isSecure, String path) {
+            this.name = name;
+            this.domain = domain;
+            this.isHttpOnly = isHttpOnly;
+            this.isSecure = isSecure;
+            this.path = path;
+        }
+
+        @Override
+        public String toString() {
+            return "Name: " + name + ", Domain: " + domain;
+        }
+    }
+
+
+
+    private static List<CookieData> getCookies(WebDriver driver) {
+        Set<Cookie> cookies = driver.manage().getCookies();
+        List<CookieData> list = new ArrayList<>();
+        for (Cookie c : cookies) {
+            list.add(new CookieData(c.getName(), c.getDomain(), c.isHttpOnly(), c.isSecure(), c.getPath()));
+        }
+        return list;
+    }
+
+
+    private static String fetchContent(String urlString) {
+        try {
+            // Handle if Gemini returns markdown link format e.g. [label](url) or just url
+            // Simple cleanup
+            if (urlString.startsWith("http")) {
+                // ok
+            } else {
+                // try to find http...
+                int httpIdx = urlString.indexOf("http");
+                if (httpIdx >= 0) {
+                   urlString = urlString.substring(httpIdx);
+                   int endIdx = urlString.indexOf(" ");
+                   if (endIdx > 0) urlString = urlString.substring(0, endIdx);
+                   endIdx = urlString.indexOf(")");
+                   if (endIdx > 0) urlString = urlString.substring(0, endIdx);
+                }
+            }
+
+            java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
+                .followRedirects(java.net.http.HttpClient.Redirect.ALWAYS)
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+
+            java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                .uri(URI.create(urlString))
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+                .GET()
+                .build();
+
+            java.net.http.HttpResponse<String> response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+            
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                String body = response.body();
+                // Simple stripping of script/style tags to reduce token and focused on text content
+                // (Optional but helpful for LLM) - sticking to raw html for now as per prompt request "HTML format"
+                return body;
+            } else {
+                 System.out.println("Failed to fetch URL: " + urlString + " Status: " + response.statusCode());
+                 return "";
+            }
+        } catch (Exception e) {
+            System.out.println("Exception fetching URL " + urlString + ": " + e.getMessage());
+            return "";
+        }
+    }
+            
+
+
+    private static void detectAndClickConsent(WebDriver driver) {
+         try {
+            // Common selectors for "Accept" or "Agree" buttons
+            // We use JS to find and click because standard click can be intercepted
+            JavascriptExecutor js = (JavascriptExecutor) driver;
+            
+            String[] xpaths = {
+                "//button[contains(text(), 'Accept')]",
+                "//button[contains(text(), 'Aceptar')]",
+                "//button[contains(text(), 'Agree')]",
+                "//button[contains(text(), 'Allow all')]",
+                "//a[contains(text(), 'Accept')]",
+                "//div[contains(@class, 'cookie')]//button",
+                "//button[contains(@id, 'accept')]",
+                "//button[contains(@class, 'agree')]"
+            };
+
+            for (String xpath : xpaths) {
+                 List<WebElement> elements = driver.findElements(By.xpath(xpath));
+                 for (WebElement el : elements) {
+                     if (el.isDisplayed() && el.isEnabled()) {
+                         try {
+                             System.out.println("Attempting to click consent button: " + xpath);
+                             // Try normal click first
+                             // el.click(); 
+                             // Use JS click for better reliability on overlays
+                             js.executeScript("arguments[0].click();", el);
+                             
+                             Thread.sleep(3000); // Wait for cookies to be set
+                             return;
+                         } catch (Exception e) {
+                             System.out.println("Failed to click element: " + e.getMessage());
+                         }
+                     }
+                 }
+            }
+        } catch (Exception e) {
+            System.out.println("No consent banner interaction performed or error: " + e.getMessage());
+        }
+    }
+
+    private static void detectAndClickReject(WebDriver driver) {
+         try {
+            // Common selectors for "Reject", "Deny" or "Refuse" buttons
+            JavascriptExecutor js = (JavascriptExecutor) driver;
+            
+            String[] xpaths = {
+                "//button[contains(text(), 'Reject')]",
+                "//button[contains(text(), 'Rechazar')]",
+                "//button[contains(text(), 'Deny')]",
+                "//button[contains(text(), 'Refuse')]",
+                "//button[contains(text(), 'Reject all')]",
+                "//button[contains(text(), 'No, thanks')]",
+                "//a[contains(text(), 'Reject')]"
+            };
+
+            for (String xpath : xpaths) {
+                 List<WebElement> elements = driver.findElements(By.xpath(xpath));
+                 for (WebElement el : elements) {
+                     if (el.isDisplayed() && el.isEnabled()) {
+                         try {
+                             System.out.println("Attempting to click REJECT button: " + xpath);
+                             js.executeScript("arguments[0].click();", el);
+                             Thread.sleep(3000); 
+                             return;
+                         } catch (Exception e) {
+                             System.out.println("Failed to click reject element: " + e.getMessage());
+                         }
+                     }
+                 }
+            }
+            System.out.println("No 'Reject' button found.");
+        } catch (Exception e) {
+            System.out.println("Error detecting reject button: " + e.getMessage());
+        }
     }
 }
 

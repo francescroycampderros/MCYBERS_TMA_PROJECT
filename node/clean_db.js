@@ -19,7 +19,7 @@ connection.connect(err => {
     }
     console.log('Connected as id ' + connection.threadId);
 
-    connection.query("DELETE FROM host_results WHERE hostname LIKE '%elmundo.es%'", (error, results) => {
+    connection.query("DELETE FROM host_results", (error, results) => {
         if (error) throw error;
         console.log('Deleted rows:', results.affectedRows);
         connection.end();

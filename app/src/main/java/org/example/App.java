@@ -228,12 +228,19 @@ public class App {
             System.out.println("Cookies captured AFTER consent: " + cookiesAfter.size());
 
             StringBuilder cookieInventoryBuilder = new StringBuilder();
-            cookieInventoryBuilder.append("Cookies set BEFORE consent (Frequency/Count: ").append(cookiesBefore.size()).append("):\n");
+            cookieInventoryBuilder.append("=== COOKIES SET BEFORE CONSENT (VIOLATIONS) ===\n");
+            cookieInventoryBuilder.append("Total Count: ").append(cookiesBefore.size()).append("\n");
+            cookieInventoryBuilder.append("These cookies were detected BEFORE the user clicked any consent button.\n");
+            cookieInventoryBuilder.append("For the JSON output, mark these with \"set_before_consent\": true\n\n");
             for(CookieData c : cookiesBefore) {
-                cookieInventoryBuilder.append("- ").append(c.toString()).append(" (Set Before Consent: YES)\n");
+                cookieInventoryBuilder.append("- ").append(c.toString()).append("\n");
             }
-            cookieInventoryBuilder.append("\nCookies set AFTER consent (Total Count: ").append(cookiesAfter.size()).append("):\n");
-             for(CookieData c : cookiesAfter) {
+            
+            cookieInventoryBuilder.append("\n=== COOKIES SET AFTER CONSENT (COMPLIANT) ===\n");
+            cookieInventoryBuilder.append("Total Count: ").append(cookiesAfter.size()).append("\n");
+            cookieInventoryBuilder.append("These cookies were detected AFTER the user clicked the consent button.\n");
+            cookieInventoryBuilder.append("For the JSON output, mark NEW cookies (not in the above list) with \"set_before_consent\": false\n\n");
+            for(CookieData c : cookiesAfter) {
                 // Check if this cookie was already present before
                 boolean presentBefore = false;
                 for(CookieData b : cookiesBefore) {
@@ -243,7 +250,7 @@ public class App {
                     }
                 }
                 if (!presentBefore) {
-                     cookieInventoryBuilder.append("- ").append(c.toString()).append(" (Set Before Consent: NO, Triggered by Consent)\n");
+                     cookieInventoryBuilder.append("- ").append(c.toString()).append(" (NEW - triggered by consent)\n");
                 }
             }
 
@@ -396,19 +403,33 @@ public class App {
 
             Evaluate the "Audit Checklist" questions below.
 
-            CRITICAL INSTRUCTIONS FOR VERDICT & SCORING:
+            CRITICAL INSTRUCTIONS FOR VERDICT & SCORING (MUST FOLLOW EXACTLY):
+            
+            PART 1: COOKIE TECHNICAL VIOLATIONS (STRICT ENFORCEMENT):
             1. You MUST cross-reference the "TECHNICAL COOKIE SCAN RESULTS" with the policy text.
-            2. If the Technical Scan shows cookies set BEFORE consent ("Set Before Consent: YES"), and the policy claims "Non-essential cookies are only set after consent", the Verdict for that question MUST be "No" (False Claim).
-            3. The "Compliance Score" must reflect the REALITY, not just the text. If technical violations exist (cookies before consent), the Score cannot be "Compliant".
-            4. If "cookies_set_before_consent" > 0 in the technical data, the overall "compliance_level" MUST be "Critical Risk" or "High Risk", and the maximum possible score for PART B is reduced.
-
+            2. For question 13 (non-essential cookies only after consent): If the Technical Scan shows cookies set BEFORE consent, the Verdict MUST be "No" regardless of policy claims.
+            3. If "cookies_set_before_consent" > 0, the overall "compliance_level" cannot be "Low Risk" (31-34).
+            
+            PART 2: POLICY EVALUATION (NUANCED ASSESSMENT):
+            For all other questions (1-12, 14-17), use nuanced evaluation:
+            - "Yes" = Requirement is fully met with clear, comprehensive information
+            - "Partial" = Requirement is partially met (e.g., some rights listed but not all, retention mentioned generally but not specifically, cookie policy exists but lacks detail)
+            - "No" = Requirement is not met or information is absent
+            
             SCORING: Calculate the score internally:
             Yes = 2 points
             Partial = 1 point
-            No/Not Found = 0 points (Use 'No' if Policy contradicts Technical Data)
+            No/Not Found = 0 points
 
             Total possible: 34 points.
-            Levels: 0-15 (Critical Risk), 16-24 (High Risk), 25-30 (Moderate Risk), 31-34 (Low Risk / Compliant).
+            
+            SCORING THRESHOLDS (MANDATORY - DO NOT DEVIATE - EXAMPLES PROVIDED):
+            - Score 0-15: compliance_level = "Critical Risk", risk_icon = "🔴" (Example: score 10 → Critical Risk 🔴)
+            - Score 16-24: compliance_level = "High Risk", risk_icon = "🟠" (Example: score 20 → High Risk 🟠)
+            - Score 25-30: compliance_level = "Moderate Risk", risk_icon = "🟡" (Example: score 28 → Moderate Risk 🟡)
+            - Score 31-34: compliance_level = "Low Risk", risk_icon = "🟢" (Example: score 32 → Low Risk 🟢)
+            
+            VERIFY your scoring calculation matches these thresholds before outputting JSON.
 
             AUDIT CHECKLIST (To be analyzed):
 
@@ -474,10 +495,28 @@ public class App {
               }
             }
 
-            IMPORTANT: 
-            1. You MUST populate the "cookies" array by analyzing the "TECHNICAL COOKIE SCAN RESULTS" provided above. Assign a category to each cookie based on its name (e.g. "_ga" is Analytics).
-            2. If you see cookies like "_ga", "_fbp" or similar set BEFORE consent (marked as YES in the list), you MUST flag "set_before_consent": true.
-            3. Calculate "cookies_set_before_consent" and "non_essential_before_consent" based on your classification.
+            COOKIE CLASSIFICATION RULES (CRITICAL - FOLLOW EXACTLY):
+            1. You MUST populate the "cookies" array by analyzing the "TECHNICAL COOKIE SCAN RESULTS" provided above.
+            2. Assign a category to each cookie based on its name:
+               - "_ga", "_gid", "_ga_*" → "analytics"
+               - "_gcl_au", "_fbp", "xbc", "_pctx" → "advertising"
+               - "FCNEC", "didomi_token", "ue_consentState" → "essential"
+            3. COOKIE TIMING CLASSIFICATION (MOST IMPORTANT):
+               - IF a cookie appears under "=== COOKIES SET BEFORE CONSENT (VIOLATIONS) ===":
+                 → set "set_before_consent": true
+               - IF a cookie appears under "=== COOKIES SET AFTER CONSENT (COMPLIANT) ===" and is marked "NEW":
+                 → set "set_before_consent": false
+            4. "cookies_set_before_consent" MUST equal the "Total Count" shown under "=== COOKIES SET BEFORE CONSENT (VIOLATIONS) ===".
+            5. "non_essential_before_consent" MUST count only analytics/advertising/other cookies from the BEFORE CONSENT section (exclude essential cookies).
+            
+            EXAMPLE: If the scan shows:
+            "=== COOKIES SET BEFORE CONSENT (VIOLATIONS) ==="
+            "Total Count: 42"
+            "- Name: _ga, Domain: .example.com"
+            
+            Then in your JSON output:
+            {"name": "_ga", "domain": ".example.com", "category": "analytics", "set_before_consent": true, ...}
+            And: "cookies_set_before_consent": 42
             """;
 
             GenerateContentResponse responseGDPR = client.models.generateContent(

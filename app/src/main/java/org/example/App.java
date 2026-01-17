@@ -43,7 +43,7 @@ public class App {
     // Keywords for cookie policy URLs (multiple EU languages)
     private static final List<String> COOKIE_KEYWORDS = Arrays.asList(
         // Español
-        "cookies", "cookie", "politica-de-cookies", "política-de-cookies",
+        "cookies", "cookie", "politica-de-cookies", "política-de-cookies", "politica-galetes",
         // Inglés
         "cookie-policy", "cookies-policy", "cookie", "cookies", "cookie-settings", "cookies-settings", "cookie-declaration", "cookie-notice", "cookies-terms", "information-about-cookies",
         // Francés
@@ -73,7 +73,7 @@ public class App {
         // Esloveno / Croata
         "piskotki", "politika-piskotkov", "kolacici", "politika-kolacica",
         // Húngaro
-        "sutik", "suti-kezeles", "cookie-tajekoztato",
+        "sutik", "suti-kezeles", "cookie-tajekoztato", "sütibeállítások", "suti-tajekoztato",
         // Búlgaro 
         "politika-za-biskvitkite", "biskvitki",
         // Griego 
@@ -92,62 +92,62 @@ public class App {
 
     // Keywords for privacy policy / data protection URLs 
     private static final List<String> PRIVACY_KEYWORDS = Arrays.asList(
-    // Español
-    "privacidad", "politica-de-privacidad", "política-de-privacidad", "proteccion-de-datos", "protección-de-datos",
-    // Inglés
-    "privacy", "privacy-policy", "data-protection", 
-    // Francés
-    "confidentialite", "confidentialité", "politique-de-confidentialite", "politique-de-confidentialité", "politique-confidentialite",
-    "donnees-personnelles", "données-personnelles",
-    // Alemán
-    "datenschutz", "datenschutzerklarung", "datenschutzerklärung", "datenschutzhinweis", "datenschutzerklaerung",
-    // Italiano
-    "privacy", "informativa-privacy", "protezione-dei-dati",
-    // Portugués
-    "privacidade", "politica-de-privacidade", "proteccao-de-dados", "proteção-de-dados",
-    // Neerlandés
-    "privacyverklaring", "gegevensbescherming", "persoonsgegevens",
-    // Sueco
-    "integritet", "personuppgifter", "dataskydd",
-    // Danés
-    "privatliv", "privatlivspolitik", "databeskyttelse",
-    // Finés
-    "tietosuoja", "tietosuojakaytanto", "tietosuojakäytäntö",
-    // Griego
-    "aporrito", "aporrito-prosopikon-dedomenon", "prostateia-dedomenon",
-    // Checo
-    "ochrana-osobnich-udaju", "ochrana-osobních-údajů", "osobni-udaje",
-    // Eslovaco
-    "ochrana-osobnych-udajov", "osobne-udaje",
-    // Polaco
-    "ochrona-danych", "ochrona-danych-osobowych", "polityka-prywatnosci", "polityka-prywatności",
-    // Húngaro
-    "adatvedelem", "adatkezelesi-tajekoztato", "adatkezelési-tájékoztató",
-    // Rumano
-    "confidentialitate", "politica-de-confidentialitate", "protectia-datelor", "protecția-datelor",
-    // Búlgaro
-    "zastita-na-lichnite-danni", "lichni-danni",
-    // Croata
-    "zastita-osobnih-podataka", "politika-privatnosti",
-    // Esloveno
-    "varstvo-osebnih-podatkov", "politika-zasebnosti",
-    // Letón
-    "privatuma-politika", "datu-aizsardziba", "datu-aizsardzība",
-    // Lituano
-    "privatumo-politika", "asmens-duomenu-apsauga",
-    // Estonio
-    "privaatsus", "privaatsustingimused", "isikuandmete-kaitse",
-    // Maltés
-    "privatezza", "politika-tal-privatezza", "protezzjoni-tad-data",
-    // Irlandés
-    "príobháideachas", "beartas-príobháideachais", "cosaint-sonraí",
-    // Luxemburgués
-    "dateschutz", "privatsphaer", "privatsphär",
-    // Ucraniano
-    "konfidentsiinist",  "polityka-konfidentsiinosti", "zakhyst-danykh", "personalni-dani","конфіденційність",
-    "політика-конфіденційності", "захист-даних", "персональні-дані",
-    // Chipriota 
-    "prostateia-prosopikon-dedomenon"
+        // Español
+        "privacidad", "politica-de-privacidad", "política-de-privacidad", "proteccion-de-datos", "protección-de-datos", 
+        // Inglés
+        "privacy", "privacy-policy", "data-protection", 
+        // Francés
+        "confidentialite", "confidentialité", "politique-de-confidentialite", "politique-de-confidentialité", "politique-confidentialite",
+        "donnees-personnelles", "données-personnelles", "politique-de-confidentialite",
+        // Alemán
+        "datenschutz", "datenschutzerklarung", "datenschutzerklärung", "datenschutzhinweis", "datenschutzerklaerung",
+        // Italiano
+        "privacy", "informativa-privacy", "protezione-dei-dati",
+        // Portugués
+        "privacidade", "politica-de-privacidade", "proteccao-de-dados", "proteção-de-dados",
+        // Neerlandés
+        "privacyverklaring", "gegevensbescherming", "persoonsgegevens",
+        // Sueco
+        "integritet", "personuppgifter", "dataskydd",
+        // Danés
+        "privatliv", "privatlivspolitik", "databeskyttelse",
+        // Finés
+        "tietosuoja", "tietosuojakaytanto", "tietosuojakäytäntö",
+        // Griego
+        "aporrito", "aporrito-prosopikon-dedomenon", "prostateia-dedomenon",
+        // Checo
+        "ochrana-osobnich-udaju", "ochrana-osobních-údajů", "osobni-udaje",
+        // Eslovaco
+        "ochrana-osobnych-udajov", "osobne-udaje",
+        // Polaco
+        "ochrona-danych", "ochrona-danych-osobowych", "polityka-prywatnosci", "polityka-prywatności",
+        // Húngaro
+        "adatvedelem", "adatkezelesi-tajekoztato", "adatkezelési-tájékoztató",
+        // Rumano
+        "confidentialitate", "politica-de-confidentialitate", "protectia-datelor", "protecția-datelor",
+        // Búlgaro
+        "zastita-na-lichnite-danni", "lichni-danni",
+        // Croata
+        "zastita-osobnih-podataka", "politika-privatnosti",
+        // Esloveno
+        "varstvo-osebnih-podatkov", "politika-zasebnosti",
+        // Letón
+        "privatuma-politika", "datu-aizsardziba", "datu-aizsardzība",
+        // Lituano
+        "privatumo-politika", "asmens-duomenu-apsauga",
+        // Estonio
+        "privaatsus", "privaatsustingimused", "isikuandmete-kaitse",
+        // Maltés
+        "privatezza", "politika-tal-privatezza", "protezzjoni-tad-data",
+        // Irlandés
+        "príobháideachas", "beartas-príobháideachais", "cosaint-sonraí",
+        // Luxemburgués
+        "dateschutz", "privatsphaer", "privatsphär",
+        // Ucraniano
+        "konfidentsiinist",  "polityka-konfidentsiinosti", "zakhyst-danykh", "personalni-dani","конфіденційність",
+        "політика-конфіденційності", "захист-даних", "персональні-дані",
+        // Chipriota 
+        "prostateia-prosopikon-dedomenon"
     );
 
     private static final String URL = "jdbc:mysql://127.0.0.1:3306/TMA?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
@@ -545,6 +545,7 @@ public class App {
                 "max_score": 34,
                 "compliance_level": "INSERT LEVEL NAME",
                 "risk_icon": "🔴 / 🟠 / 🟡 / 🟢",
+                "reasons": "INSERT A SHORT SUMMARY OF THE EVIDENCES OBTAINED",
                 "priority_actions": [
                   "Action 1 based on negative results",
                   "Action 2 based on negative results",

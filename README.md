@@ -34,7 +34,7 @@ USE TMA;
 CREATE TABLE host_results (
     id INT AUTO_INCREMENT PRIMARY KEY,
     hostname VARCHAR(255) NOT NULL,
-    results TEXT NOT NULL,
+    results JSON NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```

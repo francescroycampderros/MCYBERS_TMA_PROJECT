@@ -198,7 +198,12 @@ public class App {
             String short_domain = host.startsWith("www.") ? host.substring(4) : host;
 
             // Navigate to the domain
-            driver.get(domain);
+            try {
+                driver.get(domain);
+            } catch (Exception e){
+                System.out.println("Skipping non existing domain: " + domain);
+                continue;
+            }
 
             try {
                 wait.until(_d -> content.size() > 150);
@@ -270,7 +275,7 @@ public class App {
             if (cookieUrlsSeparatedByCommas.isEmpty() && privacyUrlsSeparatedByCommas.isEmpty()) {
                 System.out.println("No candidate URLs for cookies or privacy on domain: " + domain);
 
-                insertIntoDatabase(databasePassword, domain, "```json {\"results\":\"URLs not found.\"} ```");
+                insertIntoDatabase(databasePassword, domain, "{\"results\":\"URLs not found.\"}");
 
                 continue; // pasa al siguiente dominio del for grande
             }
@@ -484,7 +489,11 @@ public class App {
             System.out.println();
             System.out.println("Gemini GDPR response for domain " + domain + ": " + responseGDPR.text());
 
-            insertIntoDatabase(databasePassword, domain, responseGDPR.text());
+            String responseGDPRProcessed = responseGDPR.text().trim();
+            if ((responseGDPRProcessed.charAt(0)=='`')) {
+                responseGDPRProcessed = responseGDPRProcessed.substring(7, responseGDPRProcessed.length() - 3);
+            }
+            insertIntoDatabase(databasePassword, domain, responseGDPRProcessed);
 
             counter++;
             if(counter == 5){

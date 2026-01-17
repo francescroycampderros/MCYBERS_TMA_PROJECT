@@ -45,35 +45,109 @@ public class App {
         // Español
         "cookies", "cookie", "politica-de-cookies", "política-de-cookies",
         // Inglés
-        "cookie-policy", "cookies-policy",
+        "cookie-policy", "cookies-policy", "cookie", "cookies", "cookie-settings", "cookies-settings", "cookie-declaration", "cookie-notice", "cookies-terms", "information-about-cookies",
         // Francés
-        "politique-de-cookies", "cookies-et-traceurs",
+        "politique-de-cookies", "cookies-et-traceurs", "gestion-des-cookies", "charte-cookies",
         // Alemán
-        "cookie-richtlinie",
+        "cookie-richtlinie", "cookie-einstellungen", "cookie-erklaerung", "cookie-erklaerklärung",
         // Italiano
-        "cookie-policy", "informativa-cookie",
+        "cookie-policy", "informativa-cookie", "uso-dei-cookie", "policy-cookie",
         // Portugués
-        "politica-de-cookies", "política-de-cookies"
+        "politica-de-cookies", "política-de-cookies", "informacion-cookies", "termos-cookies",
+        // Neerlandés 
+        "cookiebeleid", "cookieverklaring", "cookies-instellen", "cookie-statement",
+        // Danés
+        "cookiepolitik", "om-cookies", "cookie-deklaration",
+        // Sueco
+        "cookiepolicy", "kakor", "om-kakor", "cookie-installningar", "cookie-inställningar",
+        // Noruego
+        "informasjonskapsler", "cookie-erklaring","cookie-erklæring",
+        // Finlandés (Finno-ugrio)
+        "evasteet", "evastekaytanto", "evastepolitiikka",
+        // Polaco
+        "polityka-plikow-cookies", "polityka-cookies", "ciasteczka",
+        // Checo / Eslovaco
+        "zasady-pouzivani-cookies", "prohlaseni-o-cookies", "nastavenia-cookies", "nastaveni-cookies", "zasady-cookies",
+        // Rumano
+        "politica-de-cookie", "despre-cookie", "cookies-modul",
+        // Esloveno / Croata
+        "piskotki", "politika-piskotkov", "kolacici", "politika-kolacica",
+        // Húngaro
+        "sutik", "suti-kezeles", "cookie-tajekoztato",
+        // Búlgaro 
+        "politika-za-biskvitkite", "biskvitki",
+        // Griego 
+        "cookies-politiki", "politiki-cookies",
+        // Estonia
+        "kupsised", "kupsiste-poliitika", "cookie-satted",
+        // Letonia
+        "sikdatnes", "sikdatnu-politika", "sikdatnu-izmantosana",
+        // Lituania
+        "slapukai", "slapuku-politika", "slapuku-nustatymai",
+        // Ucrania
+        "faily-cookie", "polityka-cookie", "vykorystannya-cookie", "nalashtuvannya-cookie",
+        "cookie-policy-ua", "cookies-ua", "файли-cookie", "політика-cookie", "політика-щодо-cookie",
+        "використання-cookie", "налаштування-cookie", "cookie-файли", "cookie-файлів"
     );
 
-    // Keywords for privacy policy / data protection URLs (multiple EU languages)
+    // Keywords for privacy policy / data protection URLs 
     private static final List<String> PRIVACY_KEYWORDS = Arrays.asList(
-        // Español
-        "privacidad", "politica-de-privacidad", "política-de-privacidad", "proteccion-de-datos",
-        // Inglés
-        "privacy", "privacy-policy", "data-protection",
-        // Francés
-        "confidentialite", "politique-de-confidentialite", "donnees-personnelles",
-        // Alemán
-        "datenschutz", "datenschutzerklarung",
-        // Italiano
-        "privacy", "informativa-privacy", "protezione-dei-dati",
-        // Portugués
-        "privacidade", "politica-de-privacidade",
-        // Neerlandés
-        "privacyverklaring", "gegevensbescherming",
-        // Sueco
-        "integritet", "personuppgifter"
+    // Español
+    "privacidad", "politica-de-privacidad", "política-de-privacidad", "proteccion-de-datos", "protección-de-datos",
+    // Inglés
+    "privacy", "privacy-policy", "data-protection", 
+    // Francés
+    "confidentialite", "confidentialité", "politique-de-confidentialite", "politique-de-confidentialité", "politique-confidentialite",
+    "donnees-personnelles", "données-personnelles",
+    // Alemán
+    "datenschutz", "datenschutzerklarung", "datenschutzerklärung", "datenschutzhinweis", "datenschutzerklaerung",
+    // Italiano
+    "privacy", "informativa-privacy", "protezione-dei-dati",
+    // Portugués
+    "privacidade", "politica-de-privacidade", "proteccao-de-dados", "proteção-de-dados",
+    // Neerlandés
+    "privacyverklaring", "gegevensbescherming", "persoonsgegevens",
+    // Sueco
+    "integritet", "personuppgifter", "dataskydd",
+    // Danés
+    "privatliv", "privatlivspolitik", "databeskyttelse",
+    // Finés
+    "tietosuoja", "tietosuojakaytanto", "tietosuojakäytäntö",
+    // Griego
+    "aporrito", "aporrito-prosopikon-dedomenon", "prostateia-dedomenon",
+    // Checo
+    "ochrana-osobnich-udaju", "ochrana-osobních-údajů", "osobni-udaje",
+    // Eslovaco
+    "ochrana-osobnych-udajov", "osobne-udaje",
+    // Polaco
+    "ochrona-danych", "ochrona-danych-osobowych", "polityka-prywatnosci", "polityka-prywatności",
+    // Húngaro
+    "adatvedelem", "adatkezelesi-tajekoztato", "adatkezelési-tájékoztató",
+    // Rumano
+    "confidentialitate", "politica-de-confidentialitate", "protectia-datelor", "protecția-datelor",
+    // Búlgaro
+    "zastita-na-lichnite-danni", "lichni-danni",
+    // Croata
+    "zastita-osobnih-podataka", "politika-privatnosti",
+    // Esloveno
+    "varstvo-osebnih-podatkov", "politika-zasebnosti",
+    // Letón
+    "privatuma-politika", "datu-aizsardziba", "datu-aizsardzība",
+    // Lituano
+    "privatumo-politika", "asmens-duomenu-apsauga",
+    // Estonio
+    "privaatsus", "privaatsustingimused", "isikuandmete-kaitse",
+    // Maltés
+    "privatezza", "politika-tal-privatezza", "protezzjoni-tad-data",
+    // Irlandés
+    "príobháideachas", "beartas-príobháideachais", "cosaint-sonraí",
+    // Luxemburgués
+    "dateschutz", "privatsphaer", "privatsphär",
+    // Ucraniano
+    "konfidentsiinist",  "polityka-konfidentsiinosti", "zakhyst-danykh", "personalni-dani","конфіденційність",
+    "політика-конфіденційності", "захист-даних", "персональні-дані",
+    // Chipriota 
+    "prostateia-prosopikon-dedomenon"
     );
 
     private static final String URL = "jdbc:mysql://127.0.0.1:3306/TMA?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";

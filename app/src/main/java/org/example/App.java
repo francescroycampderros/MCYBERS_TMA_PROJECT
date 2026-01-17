@@ -197,14 +197,17 @@ public class App {
 
         WebDriver driver = new ChromeDriver(options);
 
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(30));
 
         CopyOnWriteArrayList<Contents.Supplier> content = new CopyOnWriteArrayList<>();
 
         Filter myFilter = next -> {
             return req -> {
-                HttpResponse res = next.execute(req);
-                content.add(res.getContent());
+                HttpResponse res = null;
+                res = next.execute(req);
+                try {
+                    content.add(res.getContent());
+                }catch (Exception e){}
                 return res;
             };
         };
@@ -214,11 +217,13 @@ public class App {
         Client client = new Client();
 
         // Loop over all domains from domains.txt
+        int sleepCounter = 0;
         int counter = 0;
         for (String domain : domains) {
 
+            counter ++;
             System.out.println("\n\n========================================");
-            System.out.println("Processing domain: " + domain);
+            System.out.println("Processing domain ["+counter+"]: " + domain);
             System.out.println("========================================\n");
 
             System.out.println("Checking database for domain: " + domain);
@@ -310,41 +315,49 @@ public class App {
             // Filter and build URL list for cookies/privacy on this domain
             for (String url : urls) {
 
-                String[] cuttedUrl = url.split("[\"'\\\\]");
+                String[] cuttedUrl = url.split("[\"'\\\\?\\]}$]");
                 String normalizedUrl = cuttedUrl[0].toLowerCase();
 
                 // Only consider URLs from this domain
                 if (normalizedUrl.contains(short_domain)) {
 
-                    boolean isCookie = false;
-                    for (String keyword : COOKIE_KEYWORDS) {
-                        if (normalizedUrl.contains(keyword)) {
-                            isCookie = true;
-                            break;
-                        }
+
+                    try {
+                        new URI(normalizedUrl); 
+                    } catch (URISyntaxException e) {
+                        System.out.println("Not a good URL: "+normalizedUrl);
+                        continue;
                     }
 
-                    boolean isPrivacy = false;
-                    for (String keyword : PRIVACY_KEYWORDS) {
-                        if (normalizedUrl.contains(keyword)) {
-                            isPrivacy = true;
-                            break;
-                        }
-                    }
+                    //boolean isCookie = false;
+                    //for (String keyword : COOKIE_KEYWORDS) {
+                    //    if (normalizedUrl.contains(keyword)) {
+                    //        isCookie = true;
+                    //        break;
+                    //    }
+                    //}
 
-                    if (isCookie) {
+                    //boolean isPrivacy = false;
+                    //for (String keyword : PRIVACY_KEYWORDS) {
+                    //    if (normalizedUrl.contains(keyword)) {
+                    //        isPrivacy = true;
+                    //        break;
+                    //    }
+                    //}
+
+                    //if (isCookie) {
                         cookieUrlsSeparatedByCommas = cookieUrlsSeparatedByCommas + cuttedUrl[0] + ", ";
-                    }
+                    //}
 
-                    if (isPrivacy) {
+                    //if (isPrivacy) {
                         privacyUrlsSeparatedByCommas = privacyUrlsSeparatedByCommas + cuttedUrl[0] + ", ";
-                    }
+                    //}
                 }
             }
 
             // Debug:
-            System.out.println("Cookie candidates for " + domain + ": " + cookieUrlsSeparatedByCommas);
-            System.out.println("Privacy candidates for " + domain + ": " + privacyUrlsSeparatedByCommas);
+            //System.out.println("Cookie candidates for " + domain + ": " + cookieUrlsSeparatedByCommas);
+            System.out.println("\n\n\n\nPrivacy candidates for " + domain + ": " + privacyUrlsSeparatedByCommas+"\n\n\n\n");
 
             if (cookieUrlsSeparatedByCommas.isEmpty() && privacyUrlsSeparatedByCommas.isEmpty()) {
                 System.out.println("No candidate URLs for cookies or privacy on domain: " + domain);
@@ -379,7 +392,7 @@ public class App {
                     "gemini-2.5-flash",
                     "From these URL's (" + cookieCandidatesForPrompt +
                     "), found when parsing " + short_domain +
-                    " html and js files, which do you think is the cookie policy webpage. Just return one URL.",
+                    " html and js files, which do you think is the cookie policy webpage. Just return one URL (or 'NULL' in case you cannot guess it)",
                     null);
 
             System.out.println();
@@ -389,12 +402,25 @@ public class App {
                     "gemini-2.5-flash",
                     "From these URL's (" + privacyCandidatesForPrompt +
                     "), found when parsing " + short_domain +
-                    " html and js files, which do you think is the privacy policy webpage. Just return one URL.",
+                    " html and js files, which do you think is the privacy policy webpage. Just return one URL (or 'NULL' in case you cannot guess it)",
                     null);
 
             System.out.println();
             System.out.println("Gemini guess for Privacy information (" + domain + "): " + responsePrivacy.text());
 
+            if(responseCookie.text().trim().equals("NULL")|| responsePrivacy.text().trim().equals("NULL")){
+                insertIntoDatabase(databasePassword, domain, "{\"results\":\"URLs not found.\"}");
+                System.out.println("No valid cookie or policy URL returned by Gemini.");
+                continue;
+            }
+            try {
+                new URI(responseCookie.text()); 
+                new URI(responsePrivacy.text()); 
+            } catch (URISyntaxException e) {
+                insertIntoDatabase(databasePassword, domain, "{\"results\":\"URLs not found.\"}");
+                System.out.println("No valid cookie or policy URL returned by Gemini.");
+                continue;
+            }
 
             ////////////////////////////////////////////////////////////
 
@@ -570,11 +596,11 @@ public class App {
             }
             insertIntoDatabase(databasePassword, domain, responseGDPRProcessed);
 
-            counter++;
-            if(counter == 5){
+            sleepCounter++;
+            if(sleepCounter == 5){
                 System.out.println("5 Domains processed. Sleeping for 30 seconds.");
                 Thread.sleep(30000);
-                counter = 0;
+                sleepCounter = 0;
             }
         }
 

@@ -27,6 +27,8 @@ dependencies {
     implementation libs.guava
 
     implementation 'com.mysql:mysql-connector-j:8.3.0'
+
+    implementation'org.jsoup:jsoup:1.21.2'
 }
 
 application {

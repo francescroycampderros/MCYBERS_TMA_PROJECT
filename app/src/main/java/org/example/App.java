@@ -36,6 +36,10 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.ResultSet;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
 
 public class App {
@@ -307,7 +311,24 @@ public class App {
                 while (matcher.find()) {
                     urls.add(matcher.group());
                 }
+
+                Document doc = Jsoup.parse(result);
+
+                Elements links = doc.getElementsByTag("a");
+                for (Element link : links) {
+                    String linkHref = link.attr("href");
+                    if(linkHref.startsWith("http")){
+                        continue;
+                    }
+                    if(!linkHref.startsWith("/")){
+                        linkHref = "/" + linkHref;
+                    }
+                    if(!urls.contains(linkHref)){
+                        urls.add(domain + linkHref);
+                    }
+                }
             }
+
 
             String cookieUrlsSeparatedByCommas = "";
             String privacyUrlsSeparatedByCommas = "";

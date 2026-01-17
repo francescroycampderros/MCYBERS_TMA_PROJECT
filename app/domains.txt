@@ -1,4 +1,10 @@
 https://www.elmundo.es/
 https://www.elpais.com/
 https://www.publico.es/
+https://www.elysee.fr/
+https://www.economie.gouv.fr/
+https://www.assemblee-nationale.fr/
+https://www.bundesregierung.de/
+https://www.auswaertiges-amt.de/
+
 

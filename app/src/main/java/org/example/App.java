@@ -130,9 +130,7 @@ public class App {
         Filter myFilter = next -> {
             return req -> {
                 HttpResponse res = next.execute(req);
-                //if (res.getHeader("Content-Length") != null && Integer.parseInt(res.getHeader("Content-Length")) != 0) {
-                    content.add(res.getContent());
-                //}
+                content.add(res.getContent());
                 return res;
             };
         };
@@ -142,6 +140,7 @@ public class App {
         Client client = new Client();
 
         // Loop over all domains from domains.txt
+        int counter = 0;
         for (String domain : domains) {
 
             System.out.println("\n\n========================================");
@@ -196,7 +195,6 @@ public class App {
                 continue;
             }
 
-            String domain_without_protocol = host + "/";
             String short_domain = host.startsWith("www.") ? host.substring(4) : host;
 
             // Navigate to the domain
@@ -271,6 +269,9 @@ public class App {
 
             if (cookieUrlsSeparatedByCommas.isEmpty() && privacyUrlsSeparatedByCommas.isEmpty()) {
                 System.out.println("No candidate URLs for cookies or privacy on domain: " + domain);
+
+                insertIntoDatabase(databasePassword, domain, "```json {\"results\":\"URLs not found.\"} ```");
+
                 continue; // pasa al siguiente dominio del for grande
             }
             if (!cookieUrlsSeparatedByCommas.isEmpty()) {
@@ -330,21 +331,6 @@ public class App {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-
-            //String privacyHtml = "";
-            //String cookiesHtml = "";
-            //String privacyFilePath = "./privacidad/" + domain_without_protocol + "/privacidad/index.html";
-            //String cookiesFilePath = "./cookies/" + domain_without_protocol + "/cookies.html";
-
-            //try {
-            //    privacyHtml = Files.readString(Path.of(privacyFilePath), StandardCharsets.ISO_8859_1);
-            //    cookiesHtml = Files.readString(Path.of(cookiesFilePath), StandardCharsets.ISO_8859_1);
-
-            //} catch (IOException e) {
-            //    // Handle exceptions like File Not Found or I/O errors
-            //    System.err.println("Error reading file for domain " + domain + ": " + e.getMessage());
-            //    e.printStackTrace();
-            //}
 
             // NEW VERSION TO CHECK URL
             String privacyHtml = "";
@@ -498,27 +484,40 @@ public class App {
             System.out.println();
             System.out.println("Gemini GDPR response for domain " + domain + ": " + responseGDPR.text());
 
-            try (Connection connection = DriverManager.getConnection(URL, USER, databasePassword)) {
+            insertIntoDatabase(databasePassword, domain, responseGDPR.text());
 
-                String query = "INSERT INTO host_results (hostname, results) VALUES (?, ?)";
-        
-                PreparedStatement ps = null;
-                ps = connection.prepareStatement(query);
-                ps.setString(1, domain);
-                ps.setString(2, responseGDPR.text());  
-                //ps.execute();
-                //instead of ps.execute, we want to verify if data is saved
-                int rows = ps.executeUpdate();
-                System.out.println("DB insert rows affected: " + rows + " for domain " + domain);
-
-            } catch (SQLException e) {
-                e.printStackTrace();
+            counter++;
+            if(counter == 5){
+                System.out.println("5 Domains processed. Sleeping for 30 seconds.");
+                Thread.sleep(30000);
+                counter = 0;
             }
         }
 
         driver.quit();
         Runtime.getRuntime().exec("rm -rf privacidad");
         Runtime.getRuntime().exec("rm -rf cookies");
+    }
+
+    public static void insertIntoDatabase(String databasePassword, String domain, String jsonToInsert){
+
+        try (Connection connection = DriverManager.getConnection(URL, USER, databasePassword)) {
+
+        String query = "INSERT INTO host_results (hostname, results) VALUES (?, ?)";
+        
+        PreparedStatement ps = null;
+        ps = connection.prepareStatement(query);
+        ps.setString(1, domain);
+        ps.setString(2, jsonToInsert);  
+        //ps.execute();
+        //instead of ps.execute, we want to verify if data is saved
+        int rows = ps.executeUpdate();
+        System.out.println("DB insert rows affected: " + rows + " for domain " + domain);
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
     }
 }
 

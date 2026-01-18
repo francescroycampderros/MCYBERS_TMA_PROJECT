@@ -272,10 +272,6 @@ public class App {
                 closeConnections(driver, client, ignored);
                 continue;
             }
-
-            String host = uri.getHost(); // e.g. "www.elmundo.es"
-            String[] parts = host.split("\\.");
-            String parentHost = parts[parts.length - 2] + "." + parts[parts.length - 1];
             
             // Navigate to the domain
             try {
@@ -286,6 +282,17 @@ public class App {
                 continue;
             }
 
+            String host = new URI(driver.getCurrentUrl()).getHost(); // e.g. "www.elmundo.es"
+            System.out.println("Real final host: " + host);
+            String[] parts = host.split("\\.");
+            String parentHost = parts[parts.length - 2] + "." + parts[parts.length - 1];
+            System.out.print("Real final parent Host: " + parentHost);
+
+            String hostFromList = uri.getHost(); // e.g. "www.elmundo.es"
+            String[] partsFromList = hostFromList.split("\\.");
+            String parentHostFromList = partsFromList[partsFromList.length - 2] + "." + partsFromList[partsFromList.length - 1];
+
+
             try {
                 wait.until(_d -> content.size() > 150);
             } catch (org.openqa.selenium.TimeoutException e) {
@@ -295,7 +302,7 @@ public class App {
 
             //////////////////////////////////////////////////////////////////////////////
 
-            List<String> urls = new ArrayList<>();
+            Set<String> urls = new HashSet<>();
 
             for (int i = 0; i < content.size(); i++) {
                 String result = new String(content.get(i).get().readAllBytes());
@@ -316,9 +323,7 @@ public class App {
                 for (Element link : links) {
                     String linkHref = link.attr("href");
                     if(linkHref.startsWith("http")){
-                        if(!urls.contains(linkHref)){
-                            urls.add(linkHref);
-                        }
+                        urls.add(linkHref);
                         
                     }else{
                         if(!linkHref.startsWith("/")){
@@ -341,7 +346,7 @@ public class App {
                 String normalizedUrl = cuttedUrl[0].toLowerCase();
 
                 // Only consider URLs from this domain
-                if (normalizedUrl.contains(parentHost)) {
+                if (normalizedUrl.contains(parentHost) || normalizedUrl.contains(parentHostFromList)) {
 
                     try {
                         new URI(normalizedUrl); 
@@ -357,7 +362,7 @@ public class App {
 
             // Debug:
             //System.out.println("Cookie candidates for " + domain + ": " + cookieUrlsSeparatedByCommas);
-            System.out.println("\n\n\n\nPrivacy candidates for " + domain + ": " + privacyUrlsSeparatedByCommas+"\n\n\n\n");
+            //System.out.println("\n\n\n\nPrivacy candidates for " + domain + ": " + privacyUrlsSeparatedByCommas+"\n\n\n\n");
 
             if (cookieUrlsSeparatedByCommas.isEmpty() && privacyUrlsSeparatedByCommas.isEmpty()) {
                 System.out.println("No candidate URLs for cookies or privacy on domain: " + domain);
@@ -450,7 +455,10 @@ public class App {
                 driverPrivacyCookies.quit();
                 continue;                
             }
-            driverPrivacyCookies.quit();
+            System.out.println(privacyHtml);
+            System.out.println(cookiesHtml);
+
+
             
 
             

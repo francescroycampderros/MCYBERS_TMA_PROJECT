@@ -320,11 +320,11 @@ public class App {
                     if(linkHref.startsWith("http")){
                         continue;
                     }
-                    if(!linkHref.startsWith("/")){
-                        linkHref = "/" + linkHref;
+                    if(linkHref.startsWith("/")){
+                        linkHref = linkHref.substring(1);
                     }
                     if(!urls.contains(linkHref)){
-                        urls.add(domain + linkHref);
+                        urls.add(driver.getCurrentUrl() + linkHref);
                     }
                 }
             }
@@ -416,8 +416,9 @@ public class App {
                     " html and js files, which do you think is the cookie policy webpage. Just return one URL (or 'NULL' in case you cannot guess it)",
                     null);
 
+            String responseCookieText = responseCookie.text();
             System.out.println();
-            System.out.println("Gemini guess for Cookies information (" + domain + "): " + responseCookie.text());
+            System.out.println("Gemini guess for Cookies information (" + domain + "): " + responseCookieText);
 
             GenerateContentResponse responsePrivacy = client.models.generateContent(
                     "gemini-2.5-flash",
@@ -426,17 +427,26 @@ public class App {
                     " html and js files, which do you think is the privacy policy webpage. Just return one URL (or 'NULL' in case you cannot guess it)",
                     null);
 
+            String responsePrivacyText = responsePrivacy.text();
             System.out.println();
-            System.out.println("Gemini guess for Privacy information (" + domain + "): " + responsePrivacy.text());
+            System.out.println("Gemini guess for Privacy information (" + domain + "): " + responsePrivacyText);
 
-            if(responseCookie.text().trim().equals("NULL")|| responsePrivacy.text().trim().equals("NULL")){
+            if(responseCookieText.trim().equals("NULL") && responsePrivacyText.trim().equals("NULL")){
                 insertIntoDatabase(databasePassword, domain, "{\"results\":\"URLs not found.\"}");
                 System.out.println("No valid cookie or policy URL returned by Gemini.");
                 continue;
             }
+
+            if(responseCookieText.trim().equals("NULL")){
+                responseCookieText = responsePrivacyText;
+            }
+            if(responsePrivacyText.trim().equals("NULL")){
+                responsePrivacyText = responseCookieText;
+            }
+
             try {
-                new URI(responseCookie.text()); 
-                new URI(responsePrivacy.text()); 
+                new URI(responseCookieText); 
+                new URI(responsePrivacyText); 
             } catch (URISyntaxException e) {
                 insertIntoDatabase(databasePassword, domain, "{\"results\":\"URLs not found.\"}");
                 System.out.println("No valid cookie or policy URL returned by Gemini.");
@@ -445,61 +455,13 @@ public class App {
 
             ////////////////////////////////////////////////////////////
 
-            try {
-                ProcessBuilder builder = new ProcessBuilder("bash", "-c", "wget -P ./cookies --no-check-certificate -p -k " + responseCookie.text());
-                Process process = builder.start();
-                int exitCode = process.waitFor();
-
-                builder = new ProcessBuilder("bash", "-c", "wget -P ./privacidad --no-check-certificate -p -k " + responsePrivacy.text());
-                process = builder.start();
-                exitCode = process.waitFor();
-
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
             // NEW VERSION TO CHECK URL
-            String privacyHtml = "";
-            String cookiesHtml = "";
+            driver.get(responsePrivacyText);
+            String privacyHtml = driver.getPageSource();
+            driver.get(responseCookieText);
+            String cookiesHtml = driver.getPageSource();
 
-            try {
-                // Clean URLs returned by Gemini (just in case there are spaces or newlines)
-                String cookieUrl  = responseCookie.text().trim();
-                String privacyUrl = responsePrivacy.text().trim();
-
-                // Build URIs from those URLs
-                URI cookieUri  = new URI(cookieUrl);
-                URI privacyUri = new URI(privacyUrl);
-
-                // Extract real host and path as downloaded by wget
-                String cookieHost   = cookieUri.getHost();   // e.g. "elpais.com"
-                String cookiePath   = cookieUri.getPath();   // e.g. "/info/politica-de-cookies/"
-                String privacyHost  = privacyUri.getHost();  // e.g. "english.elpais.com"
-                String privacyPath  = privacyUri.getPath();  // e.g. "/info/cookies-policy/"
-
-                // Build local file paths, matching wget -P ./cookies -p -k <url>
-                String cookiesFilePath  = "./cookies/"    + cookieHost   + cookiePath;
-                String privacyFilePath  = "./privacidad/" + privacyHost  + privacyPath;
-
-                // If the path ends with '/', assume index.html
-                if (cookiesFilePath.endsWith("/")) {
-                    cookiesFilePath += "index.html";
-                }
-                if (privacyFilePath.endsWith("/")) {
-                    privacyFilePath += "index.html";
-                }
-
-                System.out.println("Reading cookies file from:  " + cookiesFilePath);
-                System.out.println("Reading privacy file from: " + privacyFilePath);
-
-                cookiesHtml = Files.readString(Path.of(cookiesFilePath), StandardCharsets.ISO_8859_1);
-                privacyHtml = Files.readString(Path.of(privacyFilePath), StandardCharsets.ISO_8859_1);
-
-            } catch (Exception e) {
-                System.err.println("Error reading policy files for domain " + domain + ": " + e.getMessage());
-                e.printStackTrace();
-            }
-            //NEW VERSION TO CHECK URL
+            
 
 
             String promptArray[] = new String[3];

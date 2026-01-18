@@ -273,10 +273,10 @@ public class App {
             }
 
             String host = uri.getHost(); // e.g. "www.elmundo.es"
-            if (host == null) {
-                System.out.println("Skipping invalid domain (no host found): " + domain);
-                continue;
-            }
+            // Extract only the last two domain parts
+            String[] parts = host.split("\\.");
+            String parentHost = parts[parts.length - 2] + "." + parts[parts.length - 1];
+            
 
             String short_domain = host.startsWith("www.") ? host.substring(4) : host;
 
@@ -318,13 +318,16 @@ public class App {
                 for (Element link : links) {
                     String linkHref = link.attr("href");
                     if(linkHref.startsWith("http")){
-                        continue;
-                    }
-                    if(linkHref.startsWith("/")){
-                        linkHref = linkHref.substring(1);
-                    }
-                    if(!urls.contains(linkHref)){
-                        urls.add(driver.getCurrentUrl() + linkHref);
+                        if(!urls.contains(linkHref)){
+                            urls.add(linkHref);
+                        }
+                        
+                    }else{
+                        if(!linkHref.startsWith("/")){
+                            linkHref = "/" + linkHref;
+                        }
+                        urls.add(new URI(driver.getCurrentUrl()).getHost() + linkHref);
+                        
                     }
                 }
             }
@@ -340,7 +343,7 @@ public class App {
                 String normalizedUrl = cuttedUrl[0].toLowerCase();
 
                 // Only consider URLs from this domain
-                if (normalizedUrl.contains(short_domain)) {
+                if (normalizedUrl.contains(parentHost)) {
 
 
                     try {

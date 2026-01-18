@@ -199,9 +199,10 @@ public class App {
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
 
-        WebDriver driver = new ChromeDriver(options);
-
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(30));
+        WebDriver driver = null;
+        WebDriverWait wait = null;
+        NetworkInterceptor ignored = null;
+        Client client = null;
 
         CopyOnWriteArrayList<Contents.Supplier> content = new CopyOnWriteArrayList<>();
 
@@ -216,15 +217,17 @@ public class App {
             };
         };
 
-        NetworkInterceptor ignored = new NetworkInterceptor(driver, myFilter);
-
-        Client client = new Client();
-
         // Loop over all domains from domains.txt
         int sleepCounter = 0;
         int counter = 0;
         for (String domain : domains) {
 
+            driver = new ChromeDriver(options);
+            wait = new WebDriverWait(driver, Duration.ofSeconds(30));
+            ignored = new NetworkInterceptor(driver, myFilter);
+            client = new Client();
+            content.clear();
+            
             counter ++;
             System.out.println("\n\n========================================");
             System.out.println("Processing domain ["+counter+"]: " + domain);
@@ -249,42 +252,37 @@ public class App {
 
             } catch (SQLException e) {
                 System.err.println("Database error while checking existing domain: " + domain);
-                e.printStackTrace();
+                closeConnections(driver, client, ignored);
                 continue;
             }
 
             if (alreadyProcessed) {
                 System.out.println("Domain FOUND in database, skipping processing: " + domain);
+                closeConnections(driver, client, ignored);
                 continue;
             }
 
             System.out.println("Domain NOT found in database, proceeding with analysis: " + domain);
-
-
-            // Clear previous captured contents
-            content.clear();
 
             URI uri;
             try {
                 uri = new URI(domain);
             } catch (URISyntaxException e) {
                 System.out.println("Skipping invalid domain (URI syntax error): " + domain);
+                closeConnections(driver, client, ignored);
                 continue;
             }
 
             String host = uri.getHost(); // e.g. "www.elmundo.es"
-            // Extract only the last two domain parts
             String[] parts = host.split("\\.");
             String parentHost = parts[parts.length - 2] + "." + parts[parts.length - 1];
             
-
-            String short_domain = host.startsWith("www.") ? host.substring(4) : host;
-
             // Navigate to the domain
             try {
                 driver.get(domain);
             } catch (Exception e){
                 System.out.println("Skipping non existing domain: " + domain);
+                closeConnections(driver, client, ignored);
                 continue;
             }
 
@@ -345,37 +343,15 @@ public class App {
                 // Only consider URLs from this domain
                 if (normalizedUrl.contains(parentHost)) {
 
-
                     try {
                         new URI(normalizedUrl); 
                     } catch (URISyntaxException e) {
                         System.out.println("Not a good URL: "+normalizedUrl);
                         continue;
                     }
-
-                    //boolean isCookie = false;
-                    //for (String keyword : COOKIE_KEYWORDS) {
-                    //    if (normalizedUrl.contains(keyword)) {
-                    //        isCookie = true;
-                    //        break;
-                    //    }
-                    //}
-
-                    //boolean isPrivacy = false;
-                    //for (String keyword : PRIVACY_KEYWORDS) {
-                    //    if (normalizedUrl.contains(keyword)) {
-                    //        isPrivacy = true;
-                    //        break;
-                    //    }
-                    //}
-
-                    //if (isCookie) {
-                        cookieUrlsSeparatedByCommas = cookieUrlsSeparatedByCommas + cuttedUrl[0] + ", ";
-                    //}
-
-                    //if (isPrivacy) {
-                        privacyUrlsSeparatedByCommas = privacyUrlsSeparatedByCommas + cuttedUrl[0] + ", ";
-                    //}
+                   
+                    cookieUrlsSeparatedByCommas = cookieUrlsSeparatedByCommas + cuttedUrl[0] + ", ";
+                    privacyUrlsSeparatedByCommas = privacyUrlsSeparatedByCommas + cuttedUrl[0] + ", ";
                 }
             }
 
@@ -385,9 +361,8 @@ public class App {
 
             if (cookieUrlsSeparatedByCommas.isEmpty() && privacyUrlsSeparatedByCommas.isEmpty()) {
                 System.out.println("No candidate URLs for cookies or privacy on domain: " + domain);
-
-                insertIntoDatabase(databasePassword, domain, "{\"results\":\"URLs not found.\"}");
-
+                insertIntoDatabase(databasePassword, domain, "{\"results\":\"URLs not found by Selenium.\"}");
+                closeConnections(driver, client, ignored);
                 continue; // pasa al siguiente dominio del for grande
             }
             if (!cookieUrlsSeparatedByCommas.isEmpty()) {
@@ -415,8 +390,8 @@ public class App {
             GenerateContentResponse responseCookie = client.models.generateContent(
                     "gemini-2.5-flash",
                     "From these URL's (" + cookieCandidatesForPrompt +
-                    "), found when parsing " + short_domain +
-                    " html and js files, which do you think is the cookie policy webpage. Just return one URL (or 'NULL' in case you cannot guess it)",
+                    "), found when parsing '" + domain +
+                    "' html and js files, which do you think is the cookie policy webpage. Just return one URL with 'https://' in the beginning (or just 'NULL' in case you cannot guess it). So just the URL or NULL but nothing else.",
                     null);
 
             String responseCookieText = responseCookie.text();
@@ -426,8 +401,8 @@ public class App {
             GenerateContentResponse responsePrivacy = client.models.generateContent(
                     "gemini-2.5-flash",
                     "From these URL's (" + privacyCandidatesForPrompt +
-                    "), found when parsing " + short_domain +
-                    " html and js files, which do you think is the privacy policy webpage. Just return one URL (or 'NULL' in case you cannot guess it)",
+                    "), found when parsing '" + domain +
+                    "' html and js files, which do you think is the privacy policy webpage. Just return one URL with 'https://' in the beginning (or just 'NULL' in case you cannot guess it). So just the URL or NULL but nothing else.",
                     null);
 
             String responsePrivacyText = responsePrivacy.text();
@@ -435,8 +410,9 @@ public class App {
             System.out.println("Gemini guess for Privacy information (" + domain + "): " + responsePrivacyText);
 
             if(responseCookieText.trim().equals("NULL") && responsePrivacyText.trim().equals("NULL")){
-                insertIntoDatabase(databasePassword, domain, "{\"results\":\"URLs not found.\"}");
                 System.out.println("No valid cookie or policy URL returned by Gemini.");
+                insertIntoDatabase(databasePassword, domain, "{\"results\":\"URLs not found by Gemini.\"}");
+                closeConnections(driver, client, ignored);
                 continue;
             }
 
@@ -451,18 +427,31 @@ public class App {
                 new URI(responseCookieText); 
                 new URI(responsePrivacyText); 
             } catch (URISyntaxException e) {
-                insertIntoDatabase(databasePassword, domain, "{\"results\":\"URLs not found.\"}");
+                insertIntoDatabase(databasePassword, domain, "{\"results\":\"URLs not valid by Gemini.\"}");
                 System.out.println("No valid cookie or policy URL returned by Gemini.");
+                closeConnections(driver, client, ignored);
                 continue;
             }
 
             ////////////////////////////////////////////////////////////
 
             // NEW VERSION TO CHECK URL
-            driver.get(responsePrivacyText);
-            String privacyHtml = driver.getPageSource();
-            driver.get(responseCookieText);
-            String cookiesHtml = driver.getPageSource();
+            WebDriver driverPrivacyCookies = new ChromeDriver(options);
+            driverPrivacyCookies.manage().timeouts().implicitlyWait(Duration.ofSeconds(30));
+            String privacyHtml = null;
+            String cookiesHtml = null;
+            try{
+                driverPrivacyCookies.get(responsePrivacyText);
+                privacyHtml = driverPrivacyCookies.getPageSource();
+                driverPrivacyCookies.get(responseCookieText);
+                cookiesHtml = driverPrivacyCookies.getPageSource();
+            } catch(Exception e){
+                closeConnections(driver, client, ignored);
+                driverPrivacyCookies.quit();
+                continue;                
+            }
+            driverPrivacyCookies.quit();
+            
 
             
 
@@ -576,21 +565,26 @@ public class App {
             System.out.println();
             System.out.println("Gemini GDPR response for domain " + domain + ": " + responseGDPR.text());
 
-            String responseGDPRProcessed = responseGDPR.text().trim();
-            if ((responseGDPRProcessed.charAt(0)=='`')) {
-                responseGDPRProcessed = responseGDPRProcessed.substring(7, responseGDPRProcessed.length() - 3);
+            String responseGDPRProcessed = responseGDPR.text();
+            if (responseGDPRProcessed != null) {
+                responseGDPRProcessed = responseGDPRProcessed.trim();
+            
+                if ((responseGDPRProcessed.charAt(0)=='`')) {
+                    responseGDPRProcessed = responseGDPRProcessed.substring(7, responseGDPRProcessed.length() - 3);
+                }
+                insertIntoDatabase(databasePassword, domain, responseGDPRProcessed);
             }
-            insertIntoDatabase(databasePassword, domain, responseGDPRProcessed);
-
             sleepCounter++;
             if(sleepCounter == 5){
                 System.out.println("5 Domains processed. Sleeping for 30 seconds.");
                 Thread.sleep(30000);
                 sleepCounter = 0;
             }
+
+            closeConnections(driver, client, ignored);
         }
 
-        driver.quit();
+        
         Runtime.getRuntime().exec("rm -rf privacidad");
         Runtime.getRuntime().exec("rm -rf cookies");
     }
@@ -614,6 +608,12 @@ public class App {
             e.printStackTrace();
         }
 
+    }
+
+    public static void closeConnections(WebDriver driver, Client client, NetworkInterceptor ignored){
+            ignored.close();
+            client.close();
+            driver.quit();
     }
 }
 

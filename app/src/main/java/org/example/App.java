@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import com.google.genai.Client;
 import com.google.genai.types.GenerateContentResponse;
+import com.google.genai.types.HttpOptions;
 import java.util.regex.*;
 import java.util.*;
 import java.net.*;
@@ -159,14 +160,8 @@ public class App {
 
     public static void main(String[] args) throws Exception {
 
-        String geminiApiKey = System.getenv("GEMINI_API_KEY");
         String chromedriverAbsolutePath = System.getenv("CHROMEDRIVER_ABSOLUTE_PATH");
         String databasePassword = System.getenv("DATABASE_PASSWORD");
-
-        if (geminiApiKey == null) {
-            System.out.println("Environment variable GEMINI_API_KEY has not been exported. It is not possible to proceed.\nTo set it use this command 'export GEMINI_API_KEY=<key>'");
-            return;
-        }
 
         if (chromedriverAbsolutePath == null) {
             System.out.println("Environment variable CHROMEDRIVER_ABSOLUTE_PATH has not been exported. It is not possible to proceed.\nTo set it use this command 'export CHROMEDRIVER_ABSOLUTE_PATH=<absolute_path>'");
@@ -225,7 +220,7 @@ public class App {
             driver = new ChromeDriver(options);
             wait = new WebDriverWait(driver, Duration.ofSeconds(30));
             ignored = new NetworkInterceptor(driver, myFilter);
-            client = new Client();
+            client = Client.builder().location("global").vertexAI(true).httpOptions(HttpOptions.builder().apiVersion("v1").build()).build();
             content.clear();
             
             counter ++;
@@ -392,25 +387,32 @@ public class App {
                     ? cookieUrlsSeparatedByCommas
                     : privacyUrlsSeparatedByCommas;
 
-            GenerateContentResponse responseCookie = client.models.generateContent(
-                    "gemini-2.5-flash",
+            
+            String responseCookieText = questionToGemini(client, 
                     "From these URL's (" + cookieCandidatesForPrompt +
                     "), found when parsing '" + domain +
-                    "' html and js files, which do you think is the cookie policy webpage. Just return one URL with 'https://' in the beginning (or just 'NULL' in case you cannot guess it). So just the URL or NULL but nothing else.",
-                    null);
+                    "' html and js files, which do you think is the cookie policy webpage. Just return one URL with 'https://' in the beginning (or just 'NULL' in case you cannot guess it). So just the URL or NULL but nothing else.");
 
-            String responseCookieText = responseCookie.text();
+            if(responseCookieText == null){
+                System.out.println("Problems with Gemini! Continuing....");
+                closeConnections(driver, client, ignored);
+                continue;
+            }
             System.out.println();
             System.out.println("Gemini guess for Cookies information (" + domain + "): " + responseCookieText);
 
-            GenerateContentResponse responsePrivacy = client.models.generateContent(
-                    "gemini-2.5-flash",
+            
+            String responsePrivacyText = questionToGemini(client, 
                     "From these URL's (" + privacyCandidatesForPrompt +
                     "), found when parsing '" + domain +
-                    "' html and js files, which do you think is the privacy policy webpage. Just return one URL with 'https://' in the beginning (or just 'NULL' in case you cannot guess it). So just the URL or NULL but nothing else.",
-                    null);
+                    "' html and js files, which do you think is the privacy policy webpage. Just return one URL with 'https://' in the beginning (or just 'NULL' in case you cannot guess it). So just the URL or NULL but nothing else.");
 
-            String responsePrivacyText = responsePrivacy.text();
+            if(responsePrivacyText == null){
+                System.out.println("Problems with Gemini! Continuing....");
+                closeConnections(driver, client, ignored);
+                continue;
+            }
+            
             System.out.println();
             System.out.println("Gemini guess for Privacy information (" + domain + "): " + responsePrivacyText);
 
@@ -443,21 +445,26 @@ public class App {
             // NEW VERSION TO CHECK URL
             WebDriver driverPrivacyCookies = new ChromeDriver(options);
             driverPrivacyCookies.manage().timeouts().implicitlyWait(Duration.ofSeconds(30));
-            String privacyHtml = null;
-            String cookiesHtml = null;
+            String privacyHtml = "";
+            String cookiesHtml = "";
             try{
                 driverPrivacyCookies.get(responsePrivacyText);
                 privacyHtml = driverPrivacyCookies.getPageSource();
                 driverPrivacyCookies.get(responseCookieText);
                 cookiesHtml = driverPrivacyCookies.getPageSource();
             } catch(Exception e){
+                System.out.println("No valid HTML for cookies and privacy webpages. Continuing....");
                 closeConnections(driver, client, ignored);
                 driverPrivacyCookies.quit();
                 continue;                
             }
-            System.out.println(privacyHtml);
-            System.out.println(cookiesHtml);
-
+            driverPrivacyCookies.quit();
+            if(privacyHtml.trim().equals("") && cookiesHtml.trim().equals("")){
+                System.out.println("No valid HTML for cookies and privacy webpages. Continuing....");
+                closeConnections(driver, client, ignored);
+                continue;
+            }
+            
 
             
 
@@ -565,15 +572,17 @@ public class App {
 
             """;
 
-            GenerateContentResponse responseGDPR = client.models.generateContent(
-                    "gemini-2.5-flash",
-                    promptArray[0] + promptArray[1] + promptArray[2],
-                    null);
+            String responseGDPRProcessed = questionToGemini(client, promptArray[0] + promptArray[1] + promptArray[2]);
+
+            if(responseGDPRProcessed == null){
+                System.out.println("Problems with Gemini! Continuing....");
+                closeConnections(driver, client, ignored);
+                continue;
+            }
 
             System.out.println();
-            System.out.println("Gemini GDPR response for domain " + domain + ": " + responseGDPR.text());
+            System.out.println("Gemini GDPR response for domain " + domain + ": " + responseGDPRProcessed);
 
-            String responseGDPRProcessed = responseGDPR.text();
             if (responseGDPRProcessed != null) {
                 responseGDPRProcessed = responseGDPRProcessed.trim();
             
@@ -622,6 +631,46 @@ public class App {
             ignored.close();
             client.close();
             driver.quit();
+    }
+
+    public static String questionToGemini(Client client, String question) throws InterruptedException{
+
+        String responseString = null;
+        int trials = 0;
+        
+        while (responseString == null && trials < 3) {
+            try{
+                GenerateContentResponse response = client.models.generateContent(
+                        "gemini-2.5-flash",
+                        question,
+                        null);
+                responseString = response.text();
+            }catch (Exception e){
+                trials ++;
+                if (trials == 1) {
+                    System.out.println("Problems with Gemini! Giving another try....");
+
+                    System.out.println(e.toString());
+                    for (StackTraceElement element : e.getStackTrace()) {
+                        System.out.println(element);
+                    }
+
+                    Thread.sleep(30000);
+                } else if(trials == 2){
+                    System.out.println("Problems witprintSth Gemini! Giving another try....");
+
+                    System.out.println(e.toString());
+                    for (StackTraceElement element : e.getStackTrace()) {
+                        System.out.println(element);
+                    }
+
+                    Thread.sleep(60000);
+                }
+            }
+        }
+
+        return responseString;
+        
     }
 }
 
